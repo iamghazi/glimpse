@@ -7,5 +7,6 @@ requires-python = ">=3.10.15"
 dependencies = [
     "google-genai>=1.56.0",
     "google-cloud-storage>=2.18.2",
+    "python-dotenv>=1.2.1",
     "streamlit>=1.52.2",
 ]
