@@ -1802,6 +1802,15 @@ wheels = [
 ]
 
 [[package]]
+name = "python-multipart"
+version = "0.0.21"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/78/96/804520d0850c7db98e5ccb70282e29208723f0964e88ffd9d0da2f52ea09/python_multipart-0.0.21.tar.gz", hash = "sha256:7137ebd4d3bbf70ea1622998f902b97a29434a9e8dc40eb203bbcf7c2a2cba92", size = 37196, upload-time = "2025-12-17T09:24:22.446Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/aa/76/03af049af4dcee5d27442f71b6924f01f3efb5d2bd34f23fcd563f2cc5f5/python_multipart-0.0.21-py3-none-any.whl", hash = "sha256:cf7a6713e01c87aa35387f4774e812c4361150938d20d232800f75ffcf266090", size = 24541, upload-time = "2025-12-17T09:24:21.153Z" },
+]
+
+[[package]]
 name = "pytz"
 version = "2025.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2402,7 +2411,9 @@ dependencies = [
     { name = "opencv-python" },
     { name = "pillow" },
     { name = "python-dotenv" },
+    { name = "python-multipart" },
     { name = "qdrant-client" },
+    { name = "requests" },
     { name = "streamlit" },
     { name = "uvicorn" },
 ]
@@ -2419,7 +2430,9 @@ requires-dist = [
     { name = "opencv-python", specifier = ">=4.10.0" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
+    { name = "python-multipart", specifier = ">=0.0.21" },
     { name = "qdrant-client", specifier = ">=1.13.1" },
+    { name = "requests", specifier = ">=2.32.3" },
     { name = "streamlit", specifier = ">=1.52.2" },
     { name = "uvicorn", specifier = ">=0.32.1" },
 ]

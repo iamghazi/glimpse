@@ -105,7 +105,7 @@ else:
         st.markdown(f"- {clip_id}")
 
     if st.button("Go to Chat →", type="primary"):
-        st.switch_page("pages/3_💬_Chat.py")
+        st.switch_page("pages/chat.py")
 
 st.divider()
 

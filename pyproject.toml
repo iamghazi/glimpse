@@ -18,4 +18,6 @@ dependencies = [
     "uvicorn>=0.32.1",
     "pillow>=10.0.0",
     "numpy>=1.24.0",
+    "python-multipart>=0.0.21",
+    "requests>=2.32.3",
 ]

@@ -23,7 +23,7 @@ with st.sidebar:
         st.info("No clips selected. Go to Search page to select clips.")
 
         if st.button("Go to Search →"):
-            st.switch_page("pages/2_🔍_Search.py")
+            st.switch_page("pages/search.py")
     else:
         st.markdown(f"**{len(st.session_state.selected_clips)} clip(s)**")
 
