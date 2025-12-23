@@ -98,10 +98,36 @@ try:
                     st.markdown(f"**Size:** {file_size_mb:.2f} MB")
                     st.markdown(f"**Uploaded:** {uploaded_at}")
 
-                    if video.get("indexed_at"):
-                        st.markdown("**Status:** ✅ Indexed")
-                    else:
-                        st.markdown("**Status:** ⚠️ Not indexed (processing will be added in Phase 3.5)")
+                    # Video metadata
+                    duration = video.get("duration_seconds", 0)
+                    fps = video.get("fps", 0)
+                    resolution = video.get("resolution", [0, 0])
+
+                    if duration > 0:
+                        st.markdown(f"**Duration:** {duration:.2f}s")
+                        st.markdown(f"**FPS:** {fps:.2f}")
+                        st.markdown(f"**Resolution:** {resolution[0]}x{resolution[1]}")
+
+                    # Fetch chunk information
+                    try:
+                        chunks_url = f"http://localhost:8000/videos/{video_id}/chunks"
+                        chunks_response = requests.get(chunks_url, timeout=2)
+                        chunks_response.raise_for_status()
+                        chunks_data = chunks_response.json()
+
+                        num_chunks = chunks_data.get("num_chunks", 0)
+                        chunks = chunks_data.get("chunks", [])
+
+                        if num_chunks > 0:
+                            total_frames = sum(chunk.get("num_frames", 0) for chunk in chunks)
+                            st.markdown(f"**Chunks:** {num_chunks}")
+                            st.markdown(f"**Frames Extracted:** {total_frames}")
+                            st.markdown("**Status:** ✅ Processed (chunks + frames)")
+                        else:
+                            st.markdown("**Status:** ⚠️ Not processed yet")
+
+                    except:
+                        st.markdown("**Status:** ⚠️ Chunk info unavailable")
 
                 with col2:
                     if st.button("Delete", key=f"delete_{video_id}"):
@@ -132,12 +158,16 @@ except requests.exceptions.RequestException as e:
 
 st.divider()
 
-st.markdown("### 📋 Next Steps")
+st.markdown("### 📋 Processing Status")
 st.info("""
-**Phase 3.5+**: Video processing pipeline will:
-- Extract chunks (60s duration, 10s overlap)
-- Extract frames at 1 FPS
-- Transcribe audio with faster-whisper
-- Generate visual descriptions with Gemini
-- Create embeddings and index in Qdrant
+**✅ Implemented:**
+- Video upload and storage
+- Automatic chunking (60s duration, 10s overlap)
+- Frame extraction at 1 FPS
+- Video metadata extraction (duration, FPS, resolution)
+
+**⏳ Coming Next (Phase 3.6+):**
+- Audio transcription with faster-whisper
+- Visual descriptions with Gemini
+- Embeddings generation and Qdrant indexing
 """)

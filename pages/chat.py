@@ -3,6 +3,7 @@ Chat with Clips Page
 Ask questions about selected video clips with context caching
 """
 import streamlit as st
+import requests
 
 st.set_page_config(
     page_title="Chat - Video Library",
@@ -12,12 +13,15 @@ st.set_page_config(
 
 st.title("💬 Chat with Video Clips")
 
+# Initialize session state
+if "selected_clips" not in st.session_state:
+    st.session_state.selected_clips = []
+if "chat_messages" not in st.session_state:
+    st.session_state.chat_messages = []
+
 # Sidebar: Selected clips
 with st.sidebar:
     st.markdown("## Selected Clips")
-
-    if "selected_clips" not in st.session_state:
-        st.session_state.selected_clips = []
 
     if not st.session_state.selected_clips:
         st.info("No clips selected. Go to Search page to select clips.")
@@ -25,13 +29,11 @@ with st.sidebar:
         if st.button("Go to Search →"):
             st.switch_page("pages/search.py")
     else:
-        st.markdown(f"**{len(st.session_state.selected_clips)} clip(s)**")
+        st.success(f"**{len(st.session_state.selected_clips)} clip(s)**")
 
         for i, clip_id in enumerate(st.session_state.selected_clips):
-            with st.expander(f"Clip {i+1}"):
-                st.markdown(f"**ID:** `{clip_id}`")
-                st.markdown("**Video:** Example Video")
-                st.markdown("**Time:** 00:30 - 01:30")
+            with st.expander(f"Clip {i+1}", expanded=False):
+                st.code(clip_id, language=None)
 
                 if st.button("Remove", key=f"remove_{clip_id}"):
                     st.session_state.selected_clips.remove(clip_id)
@@ -43,15 +45,19 @@ with st.sidebar:
 
     st.divider()
 
-    st.markdown("## Cache Status")
-    st.info("Backend not connected")
-
+    st.markdown("## 💡 About Context Caching")
     st.markdown("""
-    **Phase 3.9+**: Context caching will:
-    - Cache video frames and transcripts
-    - Reuse cache for multiple questions
-    - Show cache hit/miss statistics
-    - Reduce costs by ~90%
+    **Benefits:**
+    - First question creates cache
+    - Follow-up questions reuse cache
+    - ~90% cost reduction
+    - 1-hour cache TTL
+
+    **How it works:**
+    - Frames + transcripts cached
+    - Multiple clips supported
+    - Gemini analyzes content
+    - Answers with timestamps
     """)
 
 # Main Chat Interface
@@ -66,19 +72,27 @@ if not st.session_state.selected_clips:
     5. **Get answers** with timestamp references
     """)
 else:
-    # Chat Messages
-    if "chat_messages" not in st.session_state:
-        st.session_state.chat_messages = []
-
     # Display chat history
     for message in st.session_state.chat_messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-            if "sources" in message:
+            if message["role"] == "assistant" and "sources" in message:
                 with st.expander("📎 Sources"):
                     for source in message["sources"]:
-                        st.markdown(f"- {source}")
+                        st.markdown(f"- `{source}`")
+
+                if "cache_info" in message:
+                    with st.expander("⚡ Cache Info"):
+                        cache_info = message["cache_info"]
+                        if cache_info.get("cache_hit"):
+                            st.success("✅ Cache hit - reused previous context")
+                        elif cache_info.get("cache_used") is False:
+                            st.info(f"ℹ️ {cache_info.get('reason', 'No caching')}")
+                        else:
+                            st.info("📝 Cache created for future questions")
+
+                        st.json(cache_info)
 
     # Chat input
     if prompt := st.chat_input("Ask a question about the selected clips..."):
@@ -91,65 +105,66 @@ else:
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Generate response (placeholder)
+        # Generate response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                st.warning("⚠️ Backend not connected yet")
+                try:
+                    # Call backend chat API
+                    response = requests.post(
+                        "http://localhost:8000/chat",
+                        json={
+                            "chunk_ids": st.session_state.selected_clips,
+                            "question": prompt
+                        },
+                        timeout=60
+                    )
+                    response.raise_for_status()
+                    chat_data = response.json()
 
-                response = f"""
-                **Phase 3.9+**: Chat backend will:
-                1. Load frames and transcripts for selected clips
-                2. Create context cache with Gemini 2.0 Flash
-                3. Send your question: "{prompt}"
-                4. Generate answer with timestamp references
-                5. Return sources with clickable timestamps
+                    answer = chat_data.get("answer", "No response")
+                    sources = chat_data.get("sources", [])
+                    cache_info = chat_data.get("cache_info", {})
 
-                **Example Response:**
-                "In the first clip at [00:45], the chef demonstrates the sautéing technique by heating olive oil in a pan. Later at [01:15], they add garlic and onions. This is a classic French cooking method mentioned in the audio transcript."
+                    st.markdown(answer)
 
-                **Cache Benefits:**
-                - First question: ~$0.10 (caching input)
-                - Follow-up questions: ~$0.01 (cache hit)
-                - 90% cost reduction for multi-turn conversations
-                """
+                    # Store assistant message
+                    st.session_state.chat_messages.append({
+                        "role": "assistant",
+                        "content": answer,
+                        "sources": sources,
+                        "cache_info": cache_info
+                    })
 
-                st.markdown(response)
+                    st.rerun()
 
-                st.session_state.chat_messages.append({
-                    "role": "assistant",
-                    "content": response,
-                    "sources": [
-                        "Example Clip 1 [00:45]",
-                        "Example Clip 1 [01:15]"
-                    ]
-                })
+                except requests.exceptions.RequestException as e:
+                    error_msg = f"Failed to connect to backend: {e}"
+                    st.error(error_msg)
+                    st.warning("Please ensure the backend server is running at http://localhost:8000")
 
 st.divider()
 
 # Chat Controls
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 
 with col1:
-    if st.button("Clear Chat History"):
+    if st.button("Clear Chat History", type="secondary"):
         st.session_state.chat_messages = []
         st.rerun()
 
 with col2:
-    if st.button("Clear Cache (Backend)"):
-        st.info("Cache clearing will be implemented in Phase 3.9+")
-
-with col3:
-    if st.button("Export Chat"):
-        st.info("Chat export will be implemented in Phase 3.10")
+    if st.button("Back to Search", type="secondary"):
+        st.switch_page("pages/search.py")
 
 st.divider()
 
 st.markdown("### 💡 Example Questions")
 st.markdown("""
-Once backend is connected, you can ask questions like:
-- "What cooking techniques are shown in these clips?"
+Try asking questions like:
+- "What is happening in these clips?"
 - "Summarize the main points discussed"
-- "At what timestamp does the chef add the ingredients?"
-- "Compare the approaches shown in clip 1 vs clip 2"
-- "What tools or equipment are visible in the scenes?"
+- "What objects or people are visible?"
+- "What is being said in the audio?"
+- "Compare the content across the clips"
+- "At what timestamp does X happen?"
 """)

@@ -19,18 +19,60 @@ st.markdown("### Semantic search across your video library using AI")
 # Metrics Row
 col1, col2, col3 = st.columns(3)
 
-# Count videos in ./videos directory
-videos_dir = Path("./videos")
-video_count = len([f for f in videos_dir.glob("*.mp4")]) if videos_dir.exists() else 0
+# Fetch metrics from backend
+try:
+    import requests
+
+    # Get video count
+    videos_response = requests.get("http://localhost:8000/videos", timeout=2)
+    videos_response.raise_for_status()
+    videos_data = videos_response.json()
+    video_count = videos_data.get("count", 0)
+
+    # Count total chunks across all videos
+    total_chunks = 0
+    for video in videos_data.get("videos", []):
+        video_id = video.get("video_id")
+        try:
+            chunks_response = requests.get(f"http://localhost:8000/videos/{video_id}/chunks", timeout=2)
+            chunks_response.raise_for_status()
+            chunks_data = chunks_response.json()
+            total_chunks += chunks_data.get("num_chunks", 0)
+        except:
+            pass
+
+    backend_connected = True
+
+except:
+    # Fallback to local file count
+    videos_dir = Path("./videos")
+    video_count = len([f for f in videos_dir.glob("*.mp4")]) if videos_dir.exists() else 0
+    total_chunks = 0
+    backend_connected = False
 
 with col1:
     st.metric("📹 Videos Indexed", video_count)
 
 with col2:
-    st.metric("📦 Chunks Stored", "Backend not connected")
+    if backend_connected:
+        st.metric("📦 Chunks Stored", total_chunks)
+    else:
+        st.metric("📦 Chunks Stored", "Backend offline")
 
 with col3:
-    st.metric("🔍 Search Ready", "Backend not connected")
+    if backend_connected:
+        # Check Qdrant connection
+        try:
+            from qdrant_client import QdrantClient
+            qdrant_host = os.getenv("QDRANT_HOST", "localhost")
+            qdrant_port = int(os.getenv("QDRANT_PORT", "6333"))
+            qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port)
+            collections = qdrant_client.get_collections()
+            st.metric("🔍 Search Ready", "Not indexed yet")
+        except:
+            st.metric("🔍 Search Ready", "Qdrant offline")
+    else:
+        st.metric("🔍 Search Ready", "Backend offline")
 
 st.divider()
 

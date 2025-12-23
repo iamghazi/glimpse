@@ -80,15 +80,29 @@ class VideoVectorDB:
         points = []
 
         for chunk in chunks:
-            # Generate deterministic UUID from chunk_id
-            point_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk.chunk_id))
+            # Handle both dict and object access
+            chunk_id = chunk["chunk_id"] if isinstance(chunk, dict) else chunk.chunk_id
 
-            # Create Qdrant point
-            point = PointStruct(
-                id=point_uuid,  # Use UUID as point ID
-                vector=chunk.embedding,
-                payload={
-                    "chunk_id": chunk.chunk_id,  # Store chunk_id in payload
+            # Generate deterministic UUID from chunk_id
+            point_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk_id))
+
+            # Extract data (support both dict and object)
+            if isinstance(chunk, dict):
+                vector = chunk["embedding"]
+                payload = {
+                    "chunk_id": chunk["chunk_id"],
+                    "video_id": chunk["video_id"],
+                    "start_time": chunk["start_time"],
+                    "end_time": chunk["end_time"],
+                    "duration": chunk["duration"],
+                    "visual_description": chunk.get("visual_description", ""),
+                    "audio_transcript": chunk.get("audio_transcript", ""),
+                    "representative_frame": chunk.get("representative_frame", ""),
+                }
+            else:
+                vector = chunk.embedding
+                payload = {
+                    "chunk_id": chunk.chunk_id,
                     "video_id": chunk.video_id,
                     "start_time": chunk.start_time,
                     "end_time": chunk.end_time,
@@ -96,7 +110,13 @@ class VideoVectorDB:
                     "visual_description": chunk.visual_description,
                     "audio_transcript": chunk.audio_transcript,
                     "representative_frame": chunk.representative_frame,
-                },
+                }
+
+            # Create Qdrant point
+            point = PointStruct(
+                id=point_uuid,
+                vector=vector,
+                payload=payload,
             )
             points.append(point)
 
@@ -148,12 +168,17 @@ class VideoVectorDB:
             query=query_embedding,
             limit=top_k,
             query_filter=query_filter,
+            with_payload=True,
         ).points
 
         # Convert to SearchResult objects
         results = []
         for hit in search_results:
             payload = hit.payload
+
+            # Get score - query_points returns score as a float
+            # Score ranges from 0 (dissimilar) to 1 (similar) for cosine similarity
+            score = float(hit.score) if hasattr(hit, 'score') and hit.score is not None else 0.0
 
             # We need video metadata (title, video_path) which should be fetched
             # from metadata store. For now, using video_id as title.
@@ -165,7 +190,7 @@ class VideoVectorDB:
                 end_time=payload["end_time"],
                 visual_description=payload["visual_description"],
                 audio_transcript=payload["audio_transcript"],
-                score=hit.score,
+                score=score,
                 video_path=f"./videos/{payload['video_id']}.mp4",  # Convention
                 representative_frame=payload["representative_frame"],
             )

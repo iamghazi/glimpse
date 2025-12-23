@@ -12,6 +12,10 @@ import shutil
 from dotenv import load_dotenv
 from custom_types import VideoMetadata
 import json
+from video_processor import process_video_file
+from embeddings import search_videos
+from chat_handler import chat_with_video_clips
+from pydantic import BaseModel
 
 load_dotenv()
 
@@ -66,8 +70,8 @@ async def upload_video(
 ):
     """
     Upload a video file to the library
-    Phase 3.4: Basic upload - saves file and creates metadata
-    Phase 3.5+: Will trigger processing pipeline
+    Phase 3.5: Upload + process (chunk, extract frames)
+    Phase 3.6+: Will add transcription and visual descriptions
     """
     try:
         # Generate video ID from timestamp
@@ -87,33 +91,42 @@ async def upload_video(
         file_size_mb = file_stats.st_size / (1024 * 1024)
 
         # Create basic metadata
-        # Note: Duration, FPS, resolution will be added in Phase 3.5 with video processing
         metadata = {
             "video_id": video_id,
             "title": title,
             "file_path": str(video_path),
-            "duration_seconds": 0.0,  # Placeholder - will be populated in Phase 3.5
-            "fps": 0.0,  # Placeholder
-            "resolution": [0, 0],  # Placeholder
+            "duration_seconds": 0.0,  # Will be populated by processor
+            "fps": 0.0,  # Will be populated by processor
+            "resolution": [0, 0],  # Will be populated by processor
             "file_size_mb": file_size_mb,
             "uploaded_at": datetime.utcnow().isoformat(),
-            "indexed_at": None,  # Will be set when processing completes
+            "indexed_at": None,  # Will be set when full processing completes
             "original_filename": file.filename
         }
 
-        # Save metadata
+        # Save initial metadata
         metadata_path = METADATA_DIR / f"{video_id}.json"
         with open(metadata_path, "w") as f:
             json.dump(metadata, f, indent=2)
+
+        # Process video (chunk + extract frames)
+        print(f"Starting video processing for {video_id}...")
+        processing_result = process_video_file(video_id, str(video_path), title)
 
         return JSONResponse(
             status_code=200,
             content={
                 "video_id": video_id,
-                "message": "Video uploaded successfully. Processing pipeline will be added in Phase 3.5",
+                "message": "Video uploaded and processed successfully",
                 "file_path": str(video_path),
                 "file_size_mb": round(file_size_mb, 2),
-                "metadata_path": str(metadata_path)
+                "metadata_path": str(metadata_path),
+                "processing": {
+                    "num_chunks": processing_result["num_chunks"],
+                    "total_frames": processing_result["total_frames"],
+                    "status": processing_result["status"]
+                },
+                "note": "Transcription and visual descriptions will be added in Phase 3.6"
             }
         )
 
@@ -129,8 +142,12 @@ async def list_videos():
     try:
         videos = []
 
-        # Read all metadata files
+        # Read all metadata files (exclude chunks files)
         for metadata_file in METADATA_DIR.glob("*.json"):
+            # Skip chunk metadata files
+            if "_chunks.json" in metadata_file.name:
+                continue
+
             with open(metadata_file, "r") as f:
                 metadata = json.load(f)
                 videos.append(metadata)
@@ -169,6 +186,94 @@ async def get_video(video_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get video: {str(e)}")
 
 
+@app.get("/videos/{video_id}/chunks")
+async def get_video_chunks(video_id: str):
+    """
+    Get all chunks for a specific video
+    """
+    try:
+        chunks_metadata_path = METADATA_DIR / f"{video_id}_chunks.json"
+
+        if not chunks_metadata_path.exists():
+            return {
+                "video_id": video_id,
+                "chunks": [],
+                "message": "No chunks found - video may not be processed yet"
+            }
+
+        with open(chunks_metadata_path, "r") as f:
+            chunks = json.load(f)
+
+        return {
+            "video_id": video_id,
+            "num_chunks": len(chunks),
+            "chunks": chunks
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get chunks: {str(e)}")
+
+
+class SearchRequest(BaseModel):
+    """Search request model"""
+    query: str
+    top_k: int = 5
+    video_id: str | None = None
+
+
+class ChatRequest(BaseModel):
+    """Chat request model"""
+    chunk_ids: list[str]
+    question: str
+    cache_name: str | None = None
+
+
+@app.post("/search")
+async def search(request: SearchRequest):
+    """
+    Search for video chunks using natural language query
+    Returns ranked results with similarity scores
+    """
+    try:
+        results = search_videos(
+            query=request.query,
+            top_k=request.top_k,
+            video_id_filter=request.video_id
+        )
+
+        return {
+            "query": request.query,
+            "num_results": len(results),
+            "results": results
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+    """
+    Chat with selected video clips using Gemini with context caching
+    """
+    try:
+        if not request.chunk_ids:
+            raise HTTPException(status_code=400, detail="No clips selected")
+
+        if not request.question:
+            raise HTTPException(status_code=400, detail="No question provided")
+
+        result = chat_with_video_clips(
+            chunk_ids=request.chunk_ids,
+            question=request.question
+        )
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+
+
 @app.delete("/videos/{video_id}")
 async def delete_video(video_id: str):
     """
@@ -192,10 +297,19 @@ async def delete_video(video_id: str):
         # Delete metadata file
         metadata_path.unlink()
 
-        # Delete frames directory if exists (will be created in Phase 3.5)
+        # Delete chunks metadata if exists
+        chunks_metadata_path = METADATA_DIR / f"{video_id}_chunks.json"
+        if chunks_metadata_path.exists():
+            chunks_metadata_path.unlink()
+
+        # Delete frames directory if exists
         frames_dir = FRAMES_DIR / video_id
         if frames_dir.exists():
             shutil.rmtree(frames_dir)
+
+        # Delete from Qdrant
+        # Note: Qdrant doesn't have a built-in delete by filter, so we keep points for now
+        # They'll be cleaned up when the collection is recreated
 
         return {
             "message": f"Video {video_id} deleted successfully",
