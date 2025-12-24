@@ -89,13 +89,21 @@ class VideoProcessor:
             # Calculate end time for this chunk
             end_time = min(current_start + self.chunk_duration, duration_seconds)
 
+            # Calculate chunk duration
+            chunk_duration_actual = end_time - current_start
+
+            # Skip chunks that are too short (< 1 second) - they cause issues with embedding API
+            if chunk_duration_actual < 1.0:
+                print(f"    Skipping tiny chunk at {current_start}s (duration: {chunk_duration_actual:.2f}s)")
+                break
+
             # Create chunk info
             chunk_info = {
                 "chunk_id": f"{video_id}_{int(current_start)}_{int(end_time)}",
                 "video_id": video_id,
                 "start_time": round(current_start, 2),
                 "end_time": round(end_time, 2),
-                "duration": round(end_time - current_start, 2)
+                "duration": round(chunk_duration_actual, 2)
             }
 
             chunks.append(chunk_info)
@@ -108,6 +116,54 @@ class VideoProcessor:
                 break
 
         return chunks
+
+    def extract_video_chunk(
+        self,
+        video_path: str,
+        chunk_info: dict
+    ) -> str:
+        """
+        Extract video chunk as a separate video file
+        Returns path to the chunk video file
+        """
+        import subprocess
+
+        chunk_id = chunk_info["chunk_id"]
+        video_id = chunk_info["video_id"]
+        start_time = chunk_info["start_time"]
+        end_time = chunk_info["end_time"]
+
+        # Create directory for video chunks
+        chunks_dir = self.frames_dir / video_id / "chunks"
+        chunks_dir.mkdir(parents=True, exist_ok=True)
+
+        # Output path for chunk video
+        chunk_video_path = chunks_dir / f"{chunk_id}.mp4"
+
+        # Extract video chunk using ffmpeg with optimized compression
+        # Target: Keep chunks under 20MB for multimodal embedding API
+        cmd = [
+            "ffmpeg",
+            "-i", video_path,
+            "-ss", str(start_time),
+            "-to", str(end_time),
+            "-c:v", "libx264",      # Re-encode video
+            "-preset", "medium",     # Balanced encoding speed/quality
+            "-crf", "28",           # Higher CRF = more compression (18-28 range, 28 is good)
+            "-vf", "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease",  # Max 720p
+            "-c:a", "aac",          # Re-encode audio
+            "-b:a", "96k",          # Lower audio bitrate (96kbps is sufficient)
+            "-movflags", "+faststart",  # Optimize for streaming
+            "-y",                   # Overwrite output file
+            str(chunk_video_path)
+        ]
+
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+            return str(chunk_video_path)
+        except subprocess.CalledProcessError as e:
+            print(f"ffmpeg error extracting chunk: {e.stderr.decode()}")
+            return ""
 
     def extract_frames_from_chunk(
         self,
@@ -220,7 +276,12 @@ class VideoProcessor:
         for i, chunk_info in enumerate(chunks):
             print(f"    Processing chunk {i+1}/{len(chunks)}: {chunk_info['chunk_id']}")
 
+            # Extract video chunk as separate file
+            print(f"      - Extracting video chunk...")
+            chunk_video_path = self.extract_video_chunk(video_path, chunk_info)
+
             # Extract frames
+            print(f"      - Extracting frames...")
             frame_paths = self.extract_frames_from_chunk(
                 video_path,
                 chunk_info,
@@ -229,6 +290,7 @@ class VideoProcessor:
 
             # AI Analysis (transcription + visual description)
             if self.enable_ai_analysis:
+                print(f"      - Analyzing content (AI)...")
                 analysis = self.ai_analyzer.analyze_chunk(
                     video_path,
                     chunk_info,
@@ -248,6 +310,7 @@ class VideoProcessor:
                 "start_time": chunk_info["start_time"],
                 "end_time": chunk_info["end_time"],
                 "duration": chunk_info["duration"],
+                "chunk_video_path": chunk_video_path,  # NEW: path to chunk video file
                 "frame_paths": frame_paths,
                 "representative_frame": frame_paths[len(frame_paths) // 2] if frame_paths else "",
                 "visual_description": visual_description,

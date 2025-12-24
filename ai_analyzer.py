@@ -74,8 +74,8 @@ class AIAnalyzer:
 
     def transcribe_audio(self, audio_path: str) -> str:
         """
-        Transcribe audio using faster-whisper
-        Returns transcript text
+        Transcribe audio using faster-whisper with enhanced conversation context
+        Returns formatted transcript with speaker changes, pauses, and sound descriptions
         """
         if not Path(audio_path).exists():
             return ""
@@ -87,19 +87,81 @@ class AIAnalyzer:
                 beam_size=5,
                 language="en",  # Set to None for auto-detection
                 vad_filter=True,  # Voice activity detection
+                word_timestamps=True,  # Get word-level timestamps
             )
 
-            # Combine all segments into one transcript
+            # Build enhanced transcript with conversation context
             transcript_parts = []
-            for segment in segments:
-                transcript_parts.append(segment.text.strip())
+            prev_end_time = 0
 
-            transcript = " ".join(transcript_parts)
-            return transcript
+            for segment in segments:
+                # Detect pauses (gaps > 1 second indicate speaker change or pause)
+                if segment.start - prev_end_time > 1.0:
+                    transcript_parts.append("[pause]")
+
+                # Add the segment text
+                text = segment.text.strip()
+                if text:
+                    transcript_parts.append(text)
+
+                prev_end_time = segment.end
+
+            # Combine transcript
+            raw_transcript = " ".join(transcript_parts)
+
+            if not raw_transcript or raw_transcript.strip() == "":
+                return ""
+
+            # Enhance with Gemini to add conversation/sound context
+            enhanced_transcript = self._enhance_transcript_with_context(raw_transcript)
+
+            return enhanced_transcript
 
         except Exception as e:
             print(f"Transcription error: {e}")
             return ""
+
+    def _enhance_transcript_with_context(self, raw_transcript: str) -> str:
+        """
+        Enhance transcript with conversation context using Gemini
+        Adds speaker identification, conversation flow, and sound descriptions
+        """
+        try:
+            prompt = f"""Analyze this audio transcript and enhance it with conversation context.
+
+Raw transcript:
+{raw_transcript}
+
+Provide an enhanced version that includes:
+1. Identify likely speaker changes (e.g., "Person A says:", "Person B responds:")
+2. Describe the conversation style (casual chat, formal discussion, monologue, etc.)
+3. Note any emotional tones (excited, calm, arguing, etc.)
+4. Describe background sounds if pauses suggest them (music, traffic, silence, etc.)
+
+Format as a natural description suitable for search. Keep it concise (2-3 sentences max).
+
+Example output format:
+"A casual conversation between two people. Person A asks about a watch, Person B explains it was a gift from their grandfather. The tone is nostalgic and friendly."
+"""
+
+            response = self.gemini_client.models.generate_content(
+                model=self.gemini_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.3,
+                    max_output_tokens=200,
+                )
+            )
+
+            enhanced = response.text.strip()
+
+            # Combine raw transcript with enhanced context
+            return f"{enhanced} Transcript: {raw_transcript}"
+
+        except Exception as e:
+            print(f"Transcript enhancement error: {e}")
+            # Return raw transcript if enhancement fails
+            return raw_transcript
 
     def describe_frames(self, frame_paths: list[str], chunk_info: dict) -> str:
         """

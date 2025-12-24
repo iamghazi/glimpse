@@ -219,6 +219,7 @@ class SearchRequest(BaseModel):
     query: str
     top_k: int = 5
     video_id: str | None = None
+    score_threshold: float = 0.3  # Minimum similarity score (0.0-1.0)
 
 
 class ChatRequest(BaseModel):
@@ -232,19 +233,28 @@ class ChatRequest(BaseModel):
 async def search(request: SearchRequest):
     """
     Search for video chunks using natural language query
-    Returns ranked results with similarity scores
+    Returns ranked results with similarity scores above threshold
+
+    Args:
+        query: Natural language search query
+        top_k: Number of results to return (default 5)
+        video_id: Optional filter to search within specific video
+        score_threshold: Minimum similarity score 0.0-1.0 (default 0.3)
+                        Higher = stricter matching, Lower = more permissive
     """
     try:
         results = search_videos(
             query=request.query,
             top_k=request.top_k,
-            video_id_filter=request.video_id
+            video_id_filter=request.video_id,
+            score_threshold=request.score_threshold
         )
 
         return {
             "query": request.query,
             "num_results": len(results),
-            "results": results
+            "results": results,
+            "score_threshold": request.score_threshold
         }
 
     except Exception as e:
