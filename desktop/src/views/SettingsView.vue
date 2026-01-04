@@ -1,18 +1,56 @@
 <template>
   <div class="flex h-screen bg-background-light dark:bg-background-dark">
-    <div class="flex-1 flex items-center justify-center">
-      <div class="text-center">
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white mb-4">
-          VideoSearch AI Settings
-        </h1>
-        <p class="text-slate-600 dark:text-slate-400">
-          Settings screen under construction...
-        </p>
+    <!-- Sidebar -->
+    <AppSidebar />
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+      <!-- Settings Header -->
+      <SettingsHeader />
+
+      <!-- Scrollable Content -->
+      <div class="flex-1 overflow-y-auto p-8 pb-24">
+        <div class="max-w-4xl mx-auto flex flex-col gap-8">
+          <!-- Alert Banner -->
+          <AlertBanner />
+
+          <!-- Google Cloud API Section -->
+          <GoogleCloudSection />
+
+          <!-- Video Processing Section -->
+          <VideoProcessingSection />
+
+          <!-- Search & Embedding Section -->
+          <SearchEmbeddingSection />
+
+          <!-- Data Storage Section -->
+          <DataStorageSection />
+        </div>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
-// Placeholder - will be filled in Phase 8
+import { onMounted } from 'vue'
+import AppSidebar from '@/components/layout/AppSidebar.vue'
+import SettingsHeader from '@/components/settings/SettingsHeader.vue'
+import AlertBanner from '@/components/settings/AlertBanner.vue'
+import GoogleCloudSection from '@/components/settings/GoogleCloudSection.vue'
+import VideoProcessingSection from '@/components/settings/VideoProcessingSection.vue'
+import SearchEmbeddingSection from '@/components/settings/SearchEmbeddingSection.vue'
+import DataStorageSection from '@/components/settings/DataStorageSection.vue'
+import { useSettingsStore } from '@/stores/settings'
+import { useBackendStore } from '@/stores/backend'
+
+const settingsStore = useSettingsStore()
+const backendStore = useBackendStore()
+
+onMounted(async () => {
+  // Load settings on mount
+  await settingsStore.loadSettings()
+
+  // Check backend health
+  await backendStore.checkHealth()
+})
 </script>
