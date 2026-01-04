@@ -17,16 +17,14 @@ wheels/
 *.mov
 *.avi
 
-# Phase 3: Local storage directories
-videos/*
-!videos/.gitkeep
-frames/*
-!frames/.gitkeep
-metadata/*
-!metadata/.gitkeep
-
-# Phase 3: Qdrant storage
-qdrant_storage/
+# Data directories (Phase 5: Consolidated under data/)
+data/videos/*
+!data/videos/.gitkeep
+data/frames/*
+!data/frames/.gitkeep
+data/metadata/*
+!data/metadata/.gitkeep
+data/qdrant_storage/
 
 # Phase 2 backup
 app_phase2.py.bak
