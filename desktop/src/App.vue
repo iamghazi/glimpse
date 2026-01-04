@@ -5,20 +5,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useUIStore } from '@/stores/ui'
 
-const isDark = ref(false)
+const uiStore = useUIStore()
+const { darkMode: isDark } = storeToRefs(uiStore)
 
 onMounted(() => {
-  // Check for saved dark mode preference or system preference
-  const savedDarkMode = localStorage.getItem('darkMode')
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-
-  isDark.value = savedDarkMode === 'true' || (savedDarkMode === null && prefersDark)
-
-  // Apply dark class
-  if (isDark.value) {
-    document.documentElement.classList.add('dark')
-  }
+  uiStore.initialize()
 })
 </script>
