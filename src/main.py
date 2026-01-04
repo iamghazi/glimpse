@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.config import settings
 from src.core.logging import setup_logging
-from src.api.routes import health, videos, search, chat
+from src.api.routes import health, videos, search, chat, settings as settings_router
 
 # Setup logging
 setup_logging(log_level="INFO", log_file="api.log")
@@ -84,5 +84,6 @@ app.include_router(health.router)
 app.include_router(videos.router)
 app.include_router(search.router)
 app.include_router(chat.router)
+app.include_router(settings_router.router)
 
-logger.info("📋 Registered routes: health, videos, search, chat")
+logger.info("📋 Registered routes: health, videos, search, chat, settings")
