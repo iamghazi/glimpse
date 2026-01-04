@@ -1,10 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @layer base {
   body {
-    @apply font-display antialiased;
+    font-family: 'Inter', sans-serif;
+    @apply antialiased;
   }
 }
 

@@ -3,7 +3,7 @@
   "productName": "VideoSearch AI",
   "version": "1.0.0",
   "description": "Desktop application for Video Library Search Engine",
-  "main": "dist/electron/main.js",
+  "main": "out/main/index.js",
   "type": "module",
   "private": true,
   "scripts": {
@@ -40,6 +40,7 @@
     }
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
     "@types/bun": "latest",
     "@types/node": "^25.0.3",
     "@vitejs/plugin-vue": "^6.0.3",
