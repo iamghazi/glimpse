@@ -46,10 +46,13 @@ export const useBackendStore = defineStore('backend', () => {
 
   // Actions
   async function checkHealth() {
+    console.log('[Store] Starting health check...')
     checking.value = true
 
     try {
+      console.log('[Store] Calling window.electron.backend.health()...')
       const health: HealthCheckResponse = await window.electron.backend.health()
+      console.log('[Store] Health check response:', health)
 
       status.value = 'healthy'
       qdrantConnected.value = health.qdrant_connected
@@ -63,7 +66,7 @@ export const useBackendStore = defineStore('backend', () => {
       version.value = null
       lastChecked.value = new Date()
 
-      console.error('Backend health check failed:', err)
+      console.error('[Store] Backend health check failed:', err)
       return false
     } finally {
       checking.value = false

@@ -37,9 +37,9 @@ async def search(request: SearchQueryRequest):
             query=request.query,
             top_k=request.top_k,
             video_id_filter=request.video_id_filter,
-            score_threshold=request.score_threshold,
+            score_threshold=request.score_threshold if request.score_threshold is not None else 0.3,
             use_cascaded_reranking=request.use_cascaded_reranking,
-            tier1_candidates=request.tier1_candidates,
+            tier1_candidates=request.tier1_candidates if request.tier1_candidates is not None else 50,
             confidence_threshold=request.confidence_threshold,
         )
 

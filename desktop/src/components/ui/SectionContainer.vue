@@ -1,13 +1,13 @@
 <template>
   <section class="flex flex-col gap-4">
     <!-- Section Header -->
-    <div v-if="title || icon" class="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
+    <div v-if="title || icon" class="flex items-center gap-2 pb-2 border-b border-slate-200">
       <span v-if="icon" class="material-symbols-outlined text-primary">{{ icon }}</span>
-      <h3 class="text-lg font-bold text-slate-900 dark:text-white">{{ title }}</h3>
+      <h3 class="text-lg font-bold text-slate-900">{{ title }}</h3>
     </div>
 
     <!-- Section Content -->
-    <div class="bg-surface-light dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+    <div class="bg-surface rounded-xl border border-slate-200 p-6 shadow-sm">
       <slot />
     </div>
   </section>

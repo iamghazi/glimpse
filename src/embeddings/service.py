@@ -16,7 +16,7 @@ from vertexai.vision_models import Video, VideoSegmentConfig, MultiModalEmbeddin
 from google.api_core import exceptions as google_exceptions
 
 from src.core.config import settings
-from src.core.exceptions import EmbeddingError
+from src.core.exceptions import EmbeddingGenerationError
 from src.utils.retry import retry_with_backoff
 
 logger = logging.getLogger(__name__)

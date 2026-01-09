@@ -1,8 +1,8 @@
 <template>
-  <header class="h-16 bg-surface-light dark:bg-surface-dark border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 shrink-0 z-10">
+  <header class="h-16 bg-surface border-b border-slate-200 flex items-center justify-between px-8 shrink-0 z-10">
     <div class="flex flex-col">
-      <h2 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Settings</h2>
-      <p class="text-xs text-slate-500 dark:text-slate-400">
+      <h2 class="text-xl font-bold text-slate-900 tracking-tight">Settings</h2>
+      <p class="text-xs text-slate-500">
         Manage system configuration and API connections
       </p>
     </div>

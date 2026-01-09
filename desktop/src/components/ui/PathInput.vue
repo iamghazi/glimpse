@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-2">
-    <label v-if="label" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+    <label v-if="label" class="text-sm font-semibold text-slate-700">
       {{ label }}
       <span v-if="required" class="text-error">*</span>
     </label>
@@ -18,7 +18,7 @@
       <button
         type="button"
         :disabled="disabled"
-        class="flex items-center justify-center gap-2 px-4 h-11 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+        class="flex items-center justify-center gap-2 px-4 h-11 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
         @click="handleBrowse"
       >
         <span class="material-symbols-outlined text-[18px]">folder_open</span>
@@ -60,13 +60,13 @@ const emit = defineEmits<{
 
 const inputClasses = computed(() => [
   'h-11 px-4 rounded-lg text-sm transition-all',
-  'bg-white dark:bg-slate-900',
+  'bg-white',
   'border',
   props.error
     ? 'border-error focus:ring-error/20 focus:border-error'
-    : 'border-slate-300 dark:border-slate-700 focus:ring-primary/20 focus:border-primary',
+    : 'border-slate-300 focus:ring-primary/20 focus:border-primary',
   'focus:ring-2 focus:outline-none',
-  'text-slate-900 dark:text-white',
+  'text-slate-900',
   'placeholder:text-slate-400',
   props.disabled && 'opacity-50 cursor-not-allowed'
 ])

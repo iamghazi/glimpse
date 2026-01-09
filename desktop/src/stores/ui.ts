@@ -1,56 +1,13 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref } from 'vue'
 
 export const useUIStore = defineStore('ui', () => {
   // State
-  const darkMode = ref(false)
   const sidebarCollapsed = ref(false)
   const showUnsavedChangesDialog = ref(false)
   const activeSection = ref<string | null>(null)
 
-  // Computed
-  const theme = computed(() => (darkMode.value ? 'dark' : 'light'))
-
   // Actions
-  function toggleDarkMode() {
-    darkMode.value = !darkMode.value
-    applyDarkMode()
-    saveDarkModePreference()
-  }
-
-  function setDarkMode(value: boolean) {
-    darkMode.value = value
-    applyDarkMode()
-    saveDarkModePreference()
-  }
-
-  function initializeDarkMode() {
-    // Check localStorage first
-    const savedDarkMode = localStorage.getItem('darkMode')
-
-    if (savedDarkMode !== null) {
-      darkMode.value = savedDarkMode === 'true'
-    } else {
-      // Fall back to system preference
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      darkMode.value = prefersDark
-    }
-
-    applyDarkMode()
-  }
-
-  function applyDarkMode() {
-    if (darkMode.value) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }
-
-  function saveDarkModePreference() {
-    localStorage.setItem('darkMode', darkMode.value.toString())
-  }
-
   function toggleSidebar() {
     sidebarCollapsed.value = !sidebarCollapsed.value
     saveSidebarPreference()
@@ -92,41 +49,18 @@ export const useUIStore = defineStore('ui', () => {
     showUnsavedChangesDialog.value = false
   }
 
-  // Watch for system dark mode changes
-  function watchSystemDarkMode() {
-    const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)')
-
-    darkModeQuery.addEventListener('change', (e) => {
-      // Only update if user hasn't set a preference
-      const savedDarkMode = localStorage.getItem('darkMode')
-      if (savedDarkMode === null) {
-        darkMode.value = e.matches
-        applyDarkMode()
-      }
-    })
-  }
-
-  // Initialize watchers
+  // Initialize
   function initialize() {
-    initializeDarkMode()
     initializeSidebarState()
-    watchSystemDarkMode()
   }
 
   return {
     // State
-    darkMode,
     sidebarCollapsed,
     showUnsavedChangesDialog,
     activeSection,
 
-    // Computed
-    theme,
-
     // Actions
-    toggleDarkMode,
-    setDarkMode,
-    initializeDarkMode,
     toggleSidebar,
     setSidebarCollapsed,
     setActiveSection,

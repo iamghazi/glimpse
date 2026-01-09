@@ -140,33 +140,50 @@ class ChatHandler:
             if use_caching:
                 logger.info(f"Using context caching for {len(chunk_ids)} clips")
 
-                # Create or retrieve cached content
-                cache_config = types.CachedContent(
-                    model=self.gemini_model,
-                    contents=[system_prompt] + context_parts,
-                    ttl=f"{self.cache_ttl_seconds}s",
-                    display_name=cache_name or f"clips_{'_'.join(chunk_ids[:3])}",
-                )
+                # Create cached content using the client's cache API
+                cache_display_name = cache_name or f"clips_{'_'.join(chunk_ids[:3])}"
 
-                # Note: In production, you'd check if cache exists and reuse it
-                # For now, we create a new cache each time
-                # The actual caching happens on Gemini's side
+                try:
+                    cached_content = self.client.caches.create(
+                        model=self.gemini_model,
+                        config=types.CreateCachedContentConfig(
+                            contents=[system_prompt] + context_parts,
+                            ttl="3600s",
+                            display_name=cache_display_name,
+                        ),
+                    )
 
-                # Generate response with cached context
-                response = self.client.models.generate_content(
-                    model=self.gemini_model,
-                    contents=[question],
-                    config=types.GenerateContentConfig(
-                        cached_content=cache_config,
-                        temperature=0.7,
-                    ),
-                )
+                    # Generate response with cached context
+                    response = self.client.models.generate_content(
+                        model=self.gemini_model,
+                        contents=[question],
+                        config=types.GenerateContentConfig(
+                            cached_content=cached_content.name,
+                            temperature=0.7,
+                        ),
+                    )
 
-                cache_info = {
-                    "cache_hit": False,  # First question always creates cache
-                    "cache_name": cache_name or f"clips_{'_'.join(chunk_ids[:3])}",
-                    "cached_clips": len(chunk_ids),
-                }
+                    cache_info = {
+                        "cache_hit": False,  # First question always creates cache
+                        "cache_name": cached_content.name,
+                        "cached_clips": len(chunk_ids),
+                    }
+                except Exception as cache_err:
+                    logger.warning(f"Cache creation failed, falling back to non-cached: {cache_err}")
+                    # Fallback to non-cached generation
+                    question_part = types.Part.from_text(text=question)
+                    response = self.client.models.generate_content(
+                        model=self.gemini_model,
+                        contents=[system_prompt] + context_parts + [question_part],
+                        config=types.GenerateContentConfig(
+                            temperature=0.7,
+                        ),
+                    )
+                    cache_info = {
+                        "cache_hit": False,
+                        "cache_used": False,
+                        "reason": f"Cache creation failed: {str(cache_err)}",
+                    }
 
             else:
                 logger.info("Single clip - no caching used")

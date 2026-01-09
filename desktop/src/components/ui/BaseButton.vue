@@ -71,20 +71,19 @@ const buttonClasses = computed(() => {
     secondary: [
       'border border-secondary text-secondary',
       'hover:bg-secondary/5',
-      'dark:text-secondary-400 dark:border-secondary-400 dark:hover:bg-secondary-400/10',
       'focus:ring-secondary/20',
       'disabled:opacity-50 disabled:cursor-not-allowed'
     ],
     outline: [
-      'border border-slate-200 dark:border-slate-700',
-      'text-slate-700 dark:text-slate-300',
-      'hover:bg-slate-50 dark:hover:bg-slate-800',
+      'border border-slate-200',
+      'text-slate-700',
+      'hover:bg-slate-50',
       'focus:ring-slate-200',
       'disabled:opacity-50 disabled:cursor-not-allowed'
     ],
     ghost: [
-      'text-slate-600 dark:text-slate-400',
-      'hover:bg-slate-50 dark:hover:bg-slate-800',
+      'text-slate-600',
+      'hover:bg-slate-50',
       'focus:ring-slate-200',
       'disabled:opacity-50 disabled:cursor-not-allowed'
     ],

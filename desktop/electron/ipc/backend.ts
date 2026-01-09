@@ -2,16 +2,18 @@ import { ipcMain } from 'electron'
 import axios from 'axios'
 import type { AppSettings } from '../../src/types/settings'
 import type { HealthCheckResponse } from '../../src/types/backend'
-
-const API_BASE_URL = 'http://localhost:8000'
+import { API_BASE_URL } from './config'
 
 export function registerBackendHandlers() {
   // Health check
   ipcMain.handle('backend:health', async () => {
     try {
+      console.log('[IPC] Health check - requesting:', `${API_BASE_URL}/health`)
       const response = await axios.get<HealthCheckResponse>(`${API_BASE_URL}/health`)
+      console.log('[IPC] Health check - success:', response.data)
       return response.data
     } catch (error) {
+      console.error('[IPC] Health check - failed:', error)
       throw new Error(`Backend health check failed: ${error}`)
     }
   })
