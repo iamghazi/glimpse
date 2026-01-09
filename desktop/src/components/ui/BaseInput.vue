@@ -1,13 +1,13 @@
 <template>
   <div class="flex flex-col gap-2">
     <div v-if="label" class="flex items-center justify-between">
-      <label :for="inputId" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+      <label :for="inputId" class="text-sm font-semibold text-slate-700">
         {{ label }}
         <span v-if="required" class="text-error">*</span>
       </label>
       <span
         v-if="badge"
-        class="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded"
+        class="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded"
       >
         {{ badge }}
       </span>
@@ -82,13 +82,13 @@ const inputId = computed(() =>
 
 const inputClasses = computed(() => [
   'h-11 px-4 rounded-lg text-sm transition-all',
-  'bg-white dark:bg-slate-900',
+  'bg-white',
   'border',
   props.error
     ? 'border-error focus:ring-error/20 focus:border-error'
-    : 'border-slate-300 dark:border-slate-700 focus:ring-primary/20 focus:border-primary',
+    : 'border-slate-300 focus:ring-primary/20 focus:border-primary',
   'focus:ring-2 focus:outline-none',
-  'text-slate-900 dark:text-white',
+  'text-slate-900',
   'placeholder:text-slate-400',
   props.disabled && 'opacity-50 cursor-not-allowed'
 ])

@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-2">
     <div class="flex justify-between mb-2">
-      <label v-if="label" class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+      <label v-if="label" class="text-sm font-semibold text-slate-700">
         {{ label }}
       </label>
       <span class="text-sm font-bold text-primary">{{ modelValue }}</span>
@@ -50,7 +50,7 @@ const emit = defineEmits<{
 
 const sliderClasses = computed(() => [
   'w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary',
-  'bg-slate-200 dark:bg-slate-700',
+  'bg-slate-200',
   props.disabled && 'opacity-50 cursor-not-allowed'
 ])
 

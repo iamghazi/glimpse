@@ -58,21 +58,30 @@ class SearchQueryRequest(BaseModel):
     """Request to search the video library"""
 
     query: str = Field(..., description="Natural language query")
-    top_k: int = Field(5, description="Number of results to return", ge=1, le=50)
+    top_k: int = Field(10, description="Number of results to return", ge=1, le=50)
     use_cascaded_reranking: bool = Field(
         True, description="Enable 3-tier cascaded reranking"
     )
     confidence_threshold: float = Field(
-        0.8, description="Minimum confidence score", ge=0.0, le=1.0
+        0.0, description="Minimum confidence score", ge=0.0, le=1.0
+    )
+    video_id_filter: str | None = Field(
+        None, description="Optional: Filter results to specific video ID"
+    )
+    score_threshold: float | None = Field(
+        None, description="Optional: Minimum score threshold", ge=0.0, le=1.0
+    )
+    tier1_candidates: int | None = Field(
+        None, description="Optional: Number of tier-1 candidates for reranking", ge=1
     )
 
     class Config:
         json_schema_extra = {
             "example": {
                 "query": "Show me scenes with people cooking",
-                "top_k": 5,
+                "top_k": 10,
                 "use_cascaded_reranking": True,
-                "confidence_threshold": 0.8,
+                "confidence_threshold": 0.0,
             }
         }
 

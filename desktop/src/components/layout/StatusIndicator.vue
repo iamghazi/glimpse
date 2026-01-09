@@ -1,15 +1,15 @@
 <template>
-  <div class="p-4 border-t border-slate-200 dark:border-slate-800">
+  <div class="p-4 border-t border-slate-200">
     <div class="flex items-center gap-3 px-2 py-2">
       <div
         :class="[
           'w-2 h-2 rounded-full',
-          backendStore.isHealthy ? 'bg-success shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300 dark:bg-slate-600'
+          backendStore.isHealthy ? 'bg-success shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300'
         ]"
       ></div>
-      <p class="text-slate-500 dark:text-slate-400 text-xs font-medium">
+      <p class="text-slate-500 text-xs font-medium">
         Backend:
-        <span class="text-slate-900 dark:text-white font-semibold">
+        <span class="text-slate-900 font-semibold">
           {{ backendStore.statusText }}
         </span>
       </p>
@@ -22,9 +22,9 @@
           backendStore.qdrantConnected ? 'bg-success' : 'bg-error'
         ]">
       </div>
-      <p class="text-slate-500 dark:text-slate-400 text-xs font-medium">
+      <p class="text-slate-500 text-xs font-medium">
         Qdrant:
-        <span class="text-slate-900 dark:text-white font-semibold">
+        <span class="text-slate-900 font-semibold">
           {{ backendStore.qdrantConnected ? 'Connected' : 'Disconnected' }}
         </span>
       </p>
@@ -32,7 +32,7 @@
 
     <!-- Last checked time -->
     <div v-if="backendStore.lastChecked" class="px-2 mt-2">
-      <p class="text-slate-400 dark:text-slate-500 text-[10px]">
+      <p class="text-slate-400 text-[10px]">
         Last checked: {{ formatLastChecked(backendStore.lastChecked) }}
       </p>
     </div>

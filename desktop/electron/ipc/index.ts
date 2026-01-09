@@ -1,3 +1,6 @@
 export { registerSettingsHandlers } from './settings'
 export { registerBackendHandlers } from './backend'
 export { registerDialogHandlers } from './dialog'
+export { registerVideoHandlers } from './videos'
+export { registerSearchHandlers } from './search'
+export { registerChatHandlers } from './chat'

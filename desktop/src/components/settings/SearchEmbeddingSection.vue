@@ -28,7 +28,7 @@
 
       <!-- Confidence Threshold Slider -->
       <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
           Confidence Threshold
           <span
             class="material-symbols-outlined text-[16px] text-slate-400 cursor-help"
@@ -44,7 +44,7 @@
             min="0"
             max="1"
             step="0.05"
-            class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
+            class="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary"
             @input="updateConfidenceThreshold"
           />
           <span class="text-sm font-bold text-primary min-w-[3rem] text-right">

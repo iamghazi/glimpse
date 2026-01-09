@@ -35,15 +35,15 @@
     </div>
 
     <!-- Test Connection Action -->
-    <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+    <div class="flex items-center justify-between pt-4 border-t border-slate-100">
       <div class="flex items-center gap-2">
         <span
           :class="[
             'flex h-2 w-2 rounded-full',
-            backendStore.gcpConnected ? 'bg-success' : 'bg-slate-300 dark:bg-slate-600'
+            backendStore.gcpConnected ? 'bg-success' : 'bg-slate-300'
           ]"
         ></span>
-        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+        <span class="text-xs font-medium text-slate-500">
           Status: {{ backendStore.gcpConnected ? 'Connected' : 'Not Connected' }}
         </span>
       </div>
@@ -59,7 +59,7 @@
     </div>
 
     <!-- Error Message -->
-    <div v-if="backendStore.gcpError" class="mt-4 p-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg">
+    <div v-if="backendStore.gcpError" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
       <p class="text-sm text-error">{{ backendStore.gcpError }}</p>
     </div>
   </SectionContainer>

@@ -4,7 +4,6 @@ export default {
     "./index.html",
     "./src/**/*.{vue,js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -12,10 +11,8 @@ export default {
         'primary-hover': '#1d4ed8',
         'secondary': '#7c3aed',
         'secondary-hover': '#6d28d9',
-        'background-light': '#f3f4f6',
-        'background-dark': '#111621',
-        'surface-light': '#ffffff',
-        'surface-dark': '#1f2937',
+        'background': '#f3f4f6',
+        'surface': '#ffffff',
         'success': '#10b981',
         'error': '#ef4444',
       },
