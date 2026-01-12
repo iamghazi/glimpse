@@ -163,3 +163,40 @@ export function getVideoUrl(filePath: string): string {
 
   return `file://${absolutePath}`
 }
+
+/**
+ * Format file size in MB to human readable string
+ */
+export function formatFileSize(sizeMB: number): string {
+  if (sizeMB < 1) {
+    return `${Math.round(sizeMB * 1024)} KB`
+  }
+  if (sizeMB < 1024) {
+    return `${sizeMB.toFixed(1)} MB`
+  }
+  return `${(sizeMB / 1024).toFixed(2)} GB`
+}
+
+/**
+ * Format upload date to human readable string
+ */
+export function formatUploadDate(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) {
+    return 'Today'
+  } else if (diffDays === 1) {
+    return 'Yesterday'
+  } else if (diffDays < 7) {
+    return `${diffDays} days ago`
+  } else {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    })
+  }
+}
