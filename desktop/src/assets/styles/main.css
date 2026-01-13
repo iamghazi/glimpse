@@ -1,5 +1,27 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary: #2463eb;
+  --color-primary-hover: #1d4ed8;
+  --color-secondary: #7c3aed;
+  --color-secondary-hover: #6d28d9;
+  --color-background: #f3f4f6;
+  --color-surface: #ffffff;
+  --color-success: #10b981;
+  --color-error: #ef4444;
+
+  --animate-shimmer: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @layer base {
   body {
     font-family: 'Inter', sans-serif;

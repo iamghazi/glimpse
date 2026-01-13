@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-screen bg-background">
+  <div class="flex h-full bg-background">
     <AppSidebar />
 
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -348,7 +348,7 @@ function handleCancelUpload(fileName: string) {
 
 function handleVideoClick(videoId: string) {
   // Open video player with playback
-  videoPlayerStore.openVideo(videoId)
+  videoPlayerStore.openVideo(videoId, { sourceView: 'library' })
 }
 
 function handleViewDetails(videoId: string) {
@@ -361,7 +361,7 @@ function handleViewDetails(videoId: string) {
 
 function handleViewChunks(videoId: string) {
   // Open video player to view chunks
-  videoPlayerStore.openVideo(videoId)
+  videoPlayerStore.openVideo(videoId, { sourceView: 'library' })
 }
 
 function handleDeleteRequest(videoId: string) {

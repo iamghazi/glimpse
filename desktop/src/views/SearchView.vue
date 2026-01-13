@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-screen bg-background">
+  <div class="flex h-full bg-background">
     <AppSidebar />
 
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -75,6 +75,9 @@
         </div>
       </div>
     </main>
+
+    <!-- Video Player Modal -->
+    <VideoModal />
   </div>
 </template>
 
@@ -82,6 +85,7 @@
 import { useRouter } from 'vue-router'
 import { useSearchStore } from '@/stores/search'
 import { useChatStore } from '@/stores/chat'
+import { useVideoPlayerStore } from '@/stores/videoPlayer'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import SearchInput from '@/components/search/SearchInput.vue'
@@ -90,12 +94,14 @@ import ProcessingTierIndicator from '@/components/search/ProcessingTierIndicator
 import SearchStats from '@/components/search/SearchStats.vue'
 import EmptySearchState from '@/components/search/EmptySearchState.vue'
 import SearchResultCard from '@/components/search/SearchResultCard.vue'
+import VideoModal from '@/components/video/VideoModal.vue'
 import type { SearchResult } from '@/types/search'
 import type { ActiveClip } from '@/types/chat'
 
 const router = useRouter()
 const searchStore = useSearchStore()
 const chatStore = useChatStore()
+const videoPlayerStore = useVideoPlayerStore()
 
 async function handleSearch(query: string) {
   await searchStore.search(query)
@@ -132,7 +138,12 @@ function handleAddToChat(result: SearchResult) {
 }
 
 function handlePlayClip(result: SearchResult) {
-  // TODO: Open video player with the specific clip
-  console.log('Play clip:', result)
+  // Open video player with the specific clip
+  videoPlayerStore.openVideo(result.video_id, {
+    chunkId: result.chunk_id,
+    startTime: result.start_time,
+    endTime: result.end_time,
+    sourceView: 'search'
+  })
 }
 </script>

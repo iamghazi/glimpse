@@ -9,6 +9,19 @@ const playerStore = useVideoPlayerStore()
 const playerRef = ref<InstanceType<typeof VideoPlayer> | null>(null)
 const chunkFilter = ref('')
 
+// Compute back button text based on source view
+const backButtonText = computed(() => {
+  switch (playerStore.sourceView) {
+    case 'search':
+      return 'Back to Search'
+    case 'chat':
+      return 'Back to Chat'
+    case 'library':
+    default:
+      return 'Back to Library'
+  }
+})
+
 // Computed
 const videoSrc = computed(() => {
   if (!playerStore.videoMetadata?.file_path) return ''
@@ -79,7 +92,7 @@ watch(
   <Transition name="modal-fade">
     <div
       v-if="playerStore.isModalOpen"
-      class="fixed inset-0 z-50 bg-white flex flex-col h-screen overflow-hidden"
+      class="fixed inset-0 z-[60] bg-white flex flex-col h-screen overflow-hidden"
     >
       <!-- Header -->
       <header class="bg-white shrink-0 px-6 py-4 border-b border-slate-200 z-10 flex items-center justify-between">
@@ -89,7 +102,7 @@ watch(
             @click="closeModal"
           >
             <span class="material-symbols-outlined">arrow_back</span>
-            <span class="text-sm font-medium hidden sm:inline">Back to Library</span>
+            <span class="text-sm font-medium hidden sm:inline">{{ backButtonText }}</span>
           </button>
           <div class="h-6 w-px bg-slate-200"></div>
           <div class="flex flex-col">

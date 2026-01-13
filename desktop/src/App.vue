@@ -1,6 +1,9 @@
 <template>
-  <div class="h-screen overflow-hidden">
-    <router-view />
+  <div class="h-screen overflow-hidden flex flex-col">
+    <TitleBar />
+    <div class="flex-1 overflow-hidden pt-10">
+      <router-view />
+    </div>
     <Toast />
   </div>
 </template>
@@ -9,6 +12,7 @@
 import { onMounted, onUnmounted } from 'vue'
 import { useUIStore } from '@/stores/ui'
 import { useBackendStore } from '@/stores/backend'
+import TitleBar from '@/components/layout/TitleBar.vue'
 import Toast from '@/components/ui/Toast.vue'
 
 const uiStore = useUIStore()

@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-screen bg-background">
+  <div class="flex h-full bg-background">
     <AppSidebar />
 
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -31,19 +31,19 @@
 
         <!-- Active Context Bar -->
         <div
-          v-if="chatStore.attachedClips.length > 0"
+          v-if="chatStore.activeClips.length > 0"
           class="bg-slate-50/50 px-6 py-4"
         >
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Active Context ({{ chatStore.attachedClips.length }} Clips Selected)
+              Active Context ({{ chatStore.activeClips.length }} Clips Selected)
             </span>
           </div>
           <div class="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
             <!-- Clip Cards -->
             <div
-              v-for="clip in chatStore.attachedClips"
-              :key="clip.chunk_id"
+              v-for="clip in chatStore.activeClips"
+              :key="clip.clip_id"
               class="relative group flex-shrink-0 w-80 bg-white rounded-lg border border-slate-200 overflow-hidden flex shadow-sm hover:shadow-md transition-shadow cursor-pointer"
               @click="handlePlayClip(clip)"
             >
@@ -78,7 +78,7 @@
               <!-- Remove Button -->
               <button
                 class="absolute top-1 right-1 p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                @click.stop="chatStore.removeClip(clip.chunk_id)"
+                @click.stop="chatStore.removeClip(clip.clip_id)"
               >
                 <span class="material-symbols-outlined text-[16px]">close</span>
               </button>
@@ -113,16 +113,16 @@
           >
             <span class="material-symbols-outlined text-6xl text-slate-300 mb-4">forum</span>
             <h3 class="text-lg font-semibold text-slate-700 mb-2">
-              {{ chatStore.attachedClips.length > 0 ? 'Start a conversation' : 'No clips selected' }}
+              {{ chatStore.activeClips.length > 0 ? 'Start a conversation' : 'No clips selected' }}
             </h3>
             <p class="text-sm text-slate-500 mb-6 max-w-md">
-              {{ chatStore.attachedClips.length > 0
+              {{ chatStore.activeClips.length > 0
                 ? 'Ask questions about your selected video clips and get AI-powered insights.'
                 : 'Add video clips from Search to start a conversation with AI.'
               }}
             </p>
             <button
-              v-if="chatStore.attachedClips.length === 0"
+              v-if="chatStore.activeClips.length === 0"
               class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
               @click="router.push('/search')"
             >
@@ -204,7 +204,7 @@
               class="w-full px-4 py-3 pr-12 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-900 placeholder-slate-400 resize-none"
               placeholder="Ask a question about the selected clips..."
               rows="1"
-              :disabled="chatStore.loading || chatStore.attachedClips.length === 0"
+              :disabled="chatStore.loading || chatStore.activeClips.length === 0"
               @keydown.enter.exact.prevent="handleSendMessage"
               @input="autoResizeTextarea"
             ></textarea>
@@ -212,7 +212,7 @@
               v-if="messageInput.trim()"
               type="submit"
               class="absolute right-2 bottom-2 p-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="chatStore.loading || !messageInput.trim() || chatStore.attachedClips.length === 0"
+              :disabled="chatStore.loading || !messageInput.trim() || chatStore.activeClips.length === 0"
             >
               <span class="material-symbols-outlined text-[20px]">send</span>
             </button>
@@ -227,7 +227,7 @@
           </button>
         </form>
         <p class="text-xs text-slate-400 text-center mt-2">
-          {{ chatStore.attachedClips.length }} clip{{ chatStore.attachedClips.length !== 1 ? 's' : '' }} selected
+          {{ chatStore.activeClips.length }} clip{{ chatStore.activeClips.length !== 1 ? 's' : '' }} selected
           • Press Enter to send, Shift+Enter for new line
         </p>
       </div>
@@ -246,7 +246,7 @@ import { useVideoPlayerStore } from '@/stores/videoPlayer'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import VideoModal from '@/components/video/VideoModal.vue'
 import { formatTimeRange } from '@/types/video'
-import type { SearchResult } from '@/types/video'
+import type { ActiveClip } from '@/types/chat'
 
 const router = useRouter()
 const chatStore = useChatStore()
@@ -293,7 +293,7 @@ function formatMessage(content: string): string {
 
 async function handleSendMessage() {
   const message = messageInput.value.trim()
-  if (!message || chatStore.loading || chatStore.attachedClips.length === 0) return
+  if (!message || chatStore.loading || chatStore.activeClips.length === 0) return
 
   messageInput.value = ''
   await chatStore.sendMessage(message)
@@ -303,11 +303,12 @@ async function handleRegenerateMessage() {
   await chatStore.regenerateLastMessage()
 }
 
-function handlePlayClip(clip: SearchResult) {
+function handlePlayClip(clip: ActiveClip) {
   videoPlayerStore.openVideo(clip.video_id, {
-    chunkId: clip.chunk_id,
+    chunkId: clip.clip_id,
     startTime: clip.start_time,
-    endTime: clip.end_time
+    endTime: clip.end_time,
+    sourceView: 'chat'
   })
 }
 

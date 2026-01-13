@@ -6,6 +6,7 @@ export interface PlayVideoOptions {
   chunkId?: string
   startTime?: number
   endTime?: number
+  sourceView?: 'library' | 'search' | 'chat'
 }
 
 export const useVideoPlayerStore = defineStore('videoPlayer', () => {
@@ -19,6 +20,7 @@ export const useVideoPlayerStore = defineStore('videoPlayer', () => {
   const chunks = ref<VideoChunk[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const sourceView = ref<'library' | 'search' | 'chat'>('library')
 
   // Actions
   async function openVideo(videoId: string, options: PlayVideoOptions = {}) {
@@ -26,12 +28,12 @@ export const useVideoPlayerStore = defineStore('videoPlayer', () => {
       loading.value = true
       error.value = null
 
-      // Fetch video metadata
-      const metadata = await window.electron.backend.getVideo(videoId)
+      // Fetch video metadata using correct Electron API
+      const metadata = await window.electron.videos.get(videoId)
       videoMetadata.value = metadata
 
-      // Fetch chunks
-      const chunksResponse = await window.electron.backend.getVideoChunks(videoId)
+      // Fetch chunks using correct Electron API
+      const chunksResponse = await window.electron.videos.getChunks(videoId)
       chunks.value = chunksResponse.chunks || []
 
       // Set playback options
@@ -39,6 +41,7 @@ export const useVideoPlayerStore = defineStore('videoPlayer', () => {
       currentChunkId.value = options.chunkId || null
       startTime.value = options.startTime || 0
       endTime.value = options.endTime || null
+      sourceView.value = options.sourceView || 'library'
 
       // Open modal
       isModalOpen.value = true
@@ -62,6 +65,7 @@ export const useVideoPlayerStore = defineStore('videoPlayer', () => {
       videoMetadata.value = null
       chunks.value = []
       error.value = null
+      sourceView.value = 'library'
     }, 300)
   }
 
@@ -96,6 +100,7 @@ export const useVideoPlayerStore = defineStore('videoPlayer', () => {
     chunks,
     loading,
     error,
+    sourceView,
 
     // Actions
     openVideo,
