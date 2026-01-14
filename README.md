@@ -1,6 +1,24 @@
 # Video Library Search Engine
 
-A professional video semantic search engine with AI-powered analysis, chat, and 3-tier cascaded reranking for maximum precision.
+A professional video semantic search engine with AI-powered analysis, chat, and 3-tier cascaded reranking for maximum precision. Includes both a FastAPI backend and a beautiful Electron desktop app.
+
+## 🖥️ Desktop Application
+
+Want to use this with a beautiful native UI? Check out the [Desktop App](./desktop/README.md)!
+
+The desktop app provides:
+- Native application for macOS, Windows, and Linux
+- Intuitive UI for searching, managing, and chatting with your video library
+- Real-time processing status and visual feedback
+- Custom video player with frame-accurate seeking
+- Settings management with persistent configuration
+
+**Quick start:**
+```bash
+cd desktop
+bun install
+bun run dev
+```
 
 ## 🎯 Features
 
@@ -31,7 +49,9 @@ A professional video semantic search engine with AI-powered analysis, chat, and 
 4. **Qdrant**: Vector database (runs locally or via Docker)
 5. **FFmpeg**: For video processing
 
-## 🚀 Quick Start
+## 🚀 Backend API Setup
+
+This section covers setting up the FastAPI backend server. If you want to use the desktop app, you'll need to complete these steps first.
 
 ### 1. Authenticate with Google Cloud
 
