@@ -9,7 +9,7 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/library'
+      redirect: '/search'
     },
     {
       path: '/library',

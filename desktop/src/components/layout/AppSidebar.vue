@@ -68,14 +68,14 @@ const router = useRouter()
 
 const navItems: NavItem[] = [
   {
-    path: '/library',
-    label: 'Library',
-    icon: 'video_library'
-  },
-  {
     path: '/search',
     label: 'Search',
     icon: 'search'
+  },
+  {
+    path: '/library',
+    label: 'Library',
+    icon: 'video_library'
   },
   {
     path: '/chat',
