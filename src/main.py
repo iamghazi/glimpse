@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.core.config import settings
 from src.core.logging import setup_logging
@@ -79,6 +80,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files for serving frames/thumbnails
+app.mount("/frames", StaticFiles(directory=str(settings.FRAMES_DIR)), name="frames")
+app.mount("/data", StaticFiles(directory=str(settings.DATA_DIR)), name="data")
+
 # Include routers
 app.include_router(health.router)
 app.include_router(videos.router)
@@ -87,3 +92,4 @@ app.include_router(chat.router)
 app.include_router(settings_router.router)
 
 logger.info("📋 Registered routes: health, videos, search, chat, settings")
+logger.info("📁 Serving static files: /frames, /data")

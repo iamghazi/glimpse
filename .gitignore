@@ -25,6 +25,7 @@ data/frames/*
 data/metadata/*
 !data/metadata/.gitkeep
 data/qdrant_storage/
+qdrant_storage/
 
 # Backup and log files
 *.bak

@@ -17,6 +17,7 @@ class SearchResult(BaseModel):
     score: float = Field(..., description="Similarity/confidence score (0-1)")
     video_path: str = Field(..., description="Path for selective cache creation")
     representative_frame: str = Field(..., description="Thumbnail path")
+    frame_paths: list[str] = Field(default_factory=list, description="All frame paths from chunk")
 
     class Config:
         json_schema_extra = {

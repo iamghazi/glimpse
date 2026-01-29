@@ -17,6 +17,7 @@ export interface SearchResult {
   audio_transcript: string
   video_path: string
   representative_frame: string
+  frame_paths: string[]
 }
 
 // Search request

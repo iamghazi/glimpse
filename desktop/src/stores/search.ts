@@ -18,7 +18,7 @@ export const useSearchStore = defineStore('search', () => {
 
   const options = ref<SearchOptions>({
     top_k: 10,
-    use_cascaded_reranking: true,
+    use_cascaded_reranking: false,  // Disabled by default - LLM reranker can be too aggressive
     confidence_threshold: 0.0
   })
 

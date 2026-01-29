@@ -183,6 +183,7 @@ class VideoVectorDB:
                 "visual_description": chunk.get("visual_description", ""),
                 "audio_transcript": chunk.get("audio_transcript", ""),
                 "representative_frame": chunk.get("representative_frame", ""),
+                "frame_paths": chunk.get("frame_paths", []),
             }
 
             # Create Qdrant point with NAMED VECTORS
@@ -283,6 +284,7 @@ class VideoVectorDB:
                 score=score,
                 video_path=f"./videos/{payload['video_id']}.mp4",  # Convention
                 representative_frame=payload["representative_frame"],
+                frame_paths=payload.get("frame_paths", []),
             )
             results.append(result)
 
@@ -406,6 +408,7 @@ class VideoVectorDB:
                 score=rrf_score,
                 video_path=f"./videos/{payload['video_id']}.mp4",
                 representative_frame=payload["representative_frame"],
+                frame_paths=payload.get("frame_paths", []),
             )
             results.append(result)
 

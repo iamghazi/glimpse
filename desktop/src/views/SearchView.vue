@@ -110,7 +110,7 @@ async function handleSearch(query: string) {
 function handleResetOptions() {
   searchStore.updateOptions({
     top_k: 10,
-    use_cascaded_reranking: true,
+    use_cascaded_reranking: false,
     confidence_threshold: 0.0
   })
 }

@@ -17,6 +17,52 @@ export interface VideoMetadata {
   uploaded_at: string // ISO datetime string
   indexed_at: string | null // ISO datetime string
   original_filename?: string
+  representative_frame?: string
+}
+
+/**
+ * Video with UI state (used in library)
+ */
+export interface VideoWithState extends VideoMetadata {
+  status: VideoStatus
+  chunkCount?: number
+}
+
+/**
+ * Alias for VideoMetadata (backward compatibility)
+ */
+export type Video = VideoMetadata
+
+/**
+ * Video filters for library view
+ */
+export interface VideoFilters {
+  searchQuery: string
+  status: VideoStatus | 'all'
+  sortBy: 'uploaded_at' | 'title' | 'duration_seconds'
+  sortOrder: 'asc' | 'desc'
+}
+
+/**
+ * View mode for library
+ */
+export type VideoViewMode = 'grid' | 'list'
+
+/**
+ * Video upload request
+ */
+export interface VideoUploadRequest {
+  file: File
+  title: string
+}
+
+/**
+ * Processing status for video uploads
+ */
+export interface ProcessingStatus {
+  status: 'uploading' | 'processing' | 'indexing' | 'complete' | 'error'
+  progress: number // 0-100
+  message?: string
 }
 
 /**
@@ -162,6 +208,27 @@ export function getVideoUrl(filePath: string): string {
   const absolutePath = `${projectRoot}/${cleanPath}`
 
   return `file://${absolutePath}`
+}
+
+/**
+ * Convert a frame/thumbnail path to a URL served by the backend
+ * @param framePath - Path like "data/frames/vid_123/frame.jpg" or "frames/vid_123/frame.jpg"
+ * @returns URL like "http://localhost:8000/frames/vid_123/frame.jpg"
+ */
+export function getThumbnailUrl(framePath: string | undefined): string | undefined {
+  if (!framePath) return undefined
+
+  const API_BASE_URL = 'http://localhost:8000'
+
+  // Remove leading "data/" if present
+  let cleanPath = framePath.replace(/^data\//, '')
+
+  // Ensure it starts with frames/
+  if (!cleanPath.startsWith('frames/')) {
+    cleanPath = `frames/${cleanPath}`
+  }
+
+  return `${API_BASE_URL}/${cleanPath}`
 }
 
 /**

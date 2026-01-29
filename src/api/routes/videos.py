@@ -129,6 +129,22 @@ async def list_videos():
 
             with open(metadata_file, "r") as f:
                 metadata = json.load(f)
+
+                # Add representative_frame from first chunk for thumbnail
+                video_id = metadata.get("video_id")
+                if video_id:
+                    chunks_file = settings.METADATA_DIR / f"{video_id}_chunks.json"
+                    if chunks_file.exists():
+                        try:
+                            with open(chunks_file, "r") as cf:
+                                chunks = json.load(cf)
+                                if chunks and len(chunks) > 0:
+                                    representative_frame = chunks[0].get("representative_frame")
+                                    if representative_frame:
+                                        metadata["representative_frame"] = representative_frame
+                        except Exception as e:
+                            logger.debug(f"Could not load representative_frame for {video_id}: {e}")
+
                 videos.append(metadata)
 
         # Sort by upload date (newest first)

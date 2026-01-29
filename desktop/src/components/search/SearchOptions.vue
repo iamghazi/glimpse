@@ -80,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseSlider from '@/components/ui/BaseSlider.vue'
@@ -99,6 +99,13 @@ const emit = defineEmits<{
 const topK = ref(props.options.top_k)
 const confidenceThreshold = ref(props.options.confidence_threshold)
 const useCascadedReranking = ref(props.options.use_cascaded_reranking)
+
+// Watch for prop changes and update local refs
+watch(() => props.options, (newOptions) => {
+  topK.value = newOptions.top_k
+  confidenceThreshold.value = newOptions.confidence_threshold
+  useCascadedReranking.value = newOptions.use_cascaded_reranking
+}, { deep: true })
 
 function handleUpdate() {
   emit('update', {

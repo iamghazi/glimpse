@@ -7,7 +7,7 @@
     <div class="relative aspect-video bg-slate-100 overflow-hidden">
       <!-- Gradient Thumbnail (fallback if no actual thumbnail) -->
       <div
-        v-if="!video.thumbnailUrl"
+        v-if="!thumbnailUrl"
         :class="[
           'w-full h-full opacity-90 group-hover:scale-105 transition-transform duration-500',
           gradientClass
@@ -17,7 +17,7 @@
       <!-- Actual Thumbnail (if available) -->
       <img
         v-else
-        :src="video.thumbnailUrl"
+        :src="thumbnailUrl"
         :alt="video.title"
         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
       />
@@ -132,7 +132,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { VideoWithState } from '@/types/video'
-import { formatDuration, formatUploadDate } from '@/types/video'
+import { formatDuration, formatUploadDate, getThumbnailUrl } from '@/types/video'
 
 interface Props {
   video: VideoWithState
@@ -169,6 +169,11 @@ const gradientClass = computed(() => {
 
 const formattedDuration = computed(() => formatDuration(props.video.duration_seconds))
 const formattedDate = computed(() => formatUploadDate(props.video.uploaded_at))
+
+// Generate thumbnail URL from representative_frame
+const thumbnailUrl = computed(() => {
+  return getThumbnailUrl(props.video.representative_frame)
+})
 
 const statusColor = computed(() => {
   switch (props.video.status) {

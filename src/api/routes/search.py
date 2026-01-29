@@ -56,6 +56,7 @@ async def search(request: SearchQueryRequest):
                 "score": r.score,
                 "video_path": r.video_path,
                 "representative_frame": r.representative_frame,
+                "frame_paths": r.frame_paths,
             }
             for r in results
         ]

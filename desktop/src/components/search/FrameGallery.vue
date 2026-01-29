@@ -2,7 +2,7 @@
   <div class="grid grid-cols-5 gap-2">
     <div
       v-for="(frame, index) in frames"
-      :key="index"
+      :key="frame || `placeholder-${index}`"
       class="aspect-video bg-slate-100 rounded-lg overflow-hidden"
     >
       <img

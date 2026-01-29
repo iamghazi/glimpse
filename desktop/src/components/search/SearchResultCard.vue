@@ -71,6 +71,7 @@ import ResultMetadata from './ResultMetadata.vue'
 import FrameGallery from './FrameGallery.vue'
 import ResultActions from './ResultActions.vue'
 import type { SearchResult } from '@/types/search'
+import { getThumbnailUrl } from '@/types/video'
 
 interface Props {
   result: SearchResult
@@ -83,11 +84,27 @@ const emit = defineEmits<{
   'play-clip': [result: SearchResult]
 }>()
 
-// For now, use placeholder frame URLs
-// In production, these would come from the backend
+// Generate frame URLs from chunk's frame_paths
+// Select 5 evenly distributed frames from the chunk
 const frameUrls = computed(() => {
-  // Generate 5 placeholder frames
-  // In production: return actual frame URLs from result.representative_frame
-  return Array(5).fill(null)
+  const framePaths = props.result.frame_paths || []
+
+  if (framePaths.length === 0) {
+    return []
+  }
+
+  // If we have fewer than 5 frames, use all of them
+  if (framePaths.length <= 5) {
+    return framePaths.map(path => getThumbnailUrl(path)).filter(Boolean) as string[]
+  }
+
+  // Select 5 evenly distributed frames
+  const indices = [0, 1, 2, 3, 4].map(i =>
+    Math.floor((framePaths.length - 1) * (i / 4))
+  )
+
+  return indices
+    .map(idx => getThumbnailUrl(framePaths[idx]))
+    .filter(Boolean) as string[]
 })
 </script>
