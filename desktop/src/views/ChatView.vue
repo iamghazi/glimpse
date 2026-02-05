@@ -36,60 +36,72 @@
         >
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Active Context ({{ chatStore.activeClips.length }} Clips Selected)
+              Active Context ({{ groupedClips.length }} {{ groupedClips.length === 1 ? 'Video' : 'Videos' }})
             </span>
           </div>
           <div class="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
-            <!-- Clip Cards -->
+            <!-- Stacked Video Cards -->
             <div
-              v-for="clip in chatStore.activeClips"
-              :key="clip.clip_id"
-              class="relative group flex-shrink-0 w-80 bg-white rounded-lg border border-slate-200 overflow-hidden flex shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-              @click="handlePlayClip(clip)"
+              v-for="vGroup in groupedClips"
+              :key="vGroup.video_id"
+              class="relative flex-shrink-0 group/card"
             >
-              <!-- Thumbnail -->
-              <div class="w-24 bg-gradient-to-br from-slate-300 to-slate-400 relative">
-                <div class="absolute inset-0 flex items-center justify-center bg-black/10">
-                  <span class="material-symbols-outlined text-white/80 text-2xl">play_circle</span>
-                </div>
-              </div>
+              <!-- Stacked layers behind (visual only) -->
+              <div
+                v-if="vGroup.clips.length >= 3"
+                class="absolute inset-0 translate-x-2 translate-y-2 bg-slate-100 rounded-lg border border-slate-200"
+              ></div>
+              <div
+                v-if="vGroup.clips.length >= 2"
+                class="absolute inset-0 translate-x-1 translate-y-1 bg-slate-50 rounded-lg border border-slate-200"
+              ></div>
 
-              <!-- Info -->
-              <div class="p-3 flex-1 min-w-0 flex flex-col justify-center gap-1">
-                <div class="text-sm font-medium text-slate-900 truncate" :title="clip.title">
-                  {{ clip.title }}
-                </div>
-                <div class="flex items-center gap-2 text-xs text-slate-500">
-                  <span class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-mono">
-                    {{ formatTimeRange(clip.start_time, clip.end_time) }}
-                  </span>
-                  <span
-                    v-if="clip.score"
-                    :class="[
-                      'font-medium',
-                      clip.score >= 0.8 ? 'text-green-600' : 'text-yellow-600'
-                    ]"
-                  >
-                    {{ Math.round(clip.score * 100) }}%
-                  </span>
-                </div>
-              </div>
-
-              <!-- Remove Button -->
-              <button
-                class="absolute top-1 right-1 p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                @click.stop="chatStore.removeClip(clip.clip_id)"
+              <!-- Front card -->
+              <div
+                class="relative w-80 bg-white rounded-lg border border-slate-200 overflow-hidden flex shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                @click="handlePlayClip(vGroup.clips[0])"
               >
-                <span class="material-symbols-outlined text-[16px]">close</span>
-              </button>
+                <!-- Thumbnail -->
+                <div class="w-24 bg-gradient-to-br from-slate-300 to-slate-400 relative">
+                  <div class="absolute inset-0 flex items-center justify-center bg-black/10">
+                    <span class="material-symbols-outlined text-white/80 text-2xl">play_circle</span>
+                  </div>
+                </div>
+
+                <!-- Info -->
+                <div class="p-3 flex-1 min-w-0 flex flex-col justify-center gap-1">
+                  <div class="text-sm font-medium text-slate-900 truncate" :title="vGroup.title">
+                    {{ vGroup.title }}
+                  </div>
+                  <div class="flex items-center gap-2 text-xs text-slate-500">
+                    <span class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-mono">
+                      {{ formatTimeRange(vGroup.minStart, vGroup.maxEnd) }}
+                    </span>
+                    <span
+                      v-if="vGroup.clips.length > 1"
+                      class="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px] font-medium"
+                    >
+                      {{ vGroup.clips.length }} segments
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Remove Button -->
+                <button
+                  class="absolute top-1 right-1 p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover/card:opacity-100"
+                  @click.stop="removeVideoClips(vGroup.video_id)"
+                >
+                  <span class="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
             </div>
 
             <!-- Add More Button -->
             <button
-              class="flex-shrink-0 w-24 border-2 border-dashed border-slate-200 hover:border-primary/50 hover:bg-primary/5 rounded-lg flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-primary transition-all group"
+              class="flex-shrink-0 w-24 border-2 border-dashed border-slate-200 hover:border-primary/50 hover:bg-primary/5 rounded-lg flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-primary transition-all group/add"
               @click="router.push('/search')"
             >
-              <span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">add</span>
+              <span class="material-symbols-outlined text-2xl group-hover/add:scale-110 transition-transform">add</span>
               <span class="text-[10px] font-medium">Add</span>
             </button>
           </div>
@@ -227,7 +239,7 @@
           </button>
         </form>
         <p class="text-xs text-slate-400 text-center mt-2">
-          {{ chatStore.activeClips.length }} clip{{ chatStore.activeClips.length !== 1 ? 's' : '' }} selected
+          {{ groupedClips.length }} video{{ groupedClips.length !== 1 ? 's' : '' }} selected
           • Press Enter to send, Shift+Enter for new line
         </p>
       </div>
@@ -253,6 +265,40 @@ const chatStore = useChatStore()
 const videoPlayerStore = useVideoPlayerStore()
 
 const messageInput = ref('')
+
+interface ClipGroup {
+  video_id: string
+  title: string
+  minStart: number
+  maxEnd: number
+  clips: ActiveClip[]
+}
+
+const groupedClips = computed<ClipGroup[]>(() => {
+  const groups = new Map<string, ClipGroup>()
+  for (const clip of chatStore.activeClips) {
+    let group = groups.get(clip.video_id)
+    if (!group) {
+      group = {
+        video_id: clip.video_id,
+        title: clip.title,
+        minStart: clip.start_time,
+        maxEnd: clip.end_time,
+        clips: []
+      }
+      groups.set(clip.video_id, group)
+    }
+    group.clips.push(clip)
+    if (clip.start_time < group.minStart) group.minStart = clip.start_time
+    if (clip.end_time > group.maxEnd) group.maxEnd = clip.end_time
+  }
+  return Array.from(groups.values())
+})
+
+function removeVideoClips(videoId: string) {
+  const clipsToRemove = chatStore.activeClips.filter(c => c.video_id === videoId)
+  clipsToRemove.forEach(c => chatStore.removeClip(c.clip_id))
+}
 
 const formattedDate = computed(() => {
   const now = new Date()

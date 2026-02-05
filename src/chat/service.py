@@ -68,7 +68,7 @@ class ChatHandler:
                 continue
 
             # Add chunk header
-            header_text = f"\n=== Clip: {chunk_id} ===\nTime range: {chunk_data['start_time']:.1f}s - {chunk_data['end_time']:.1f}s\n"
+            header_text = f"\n=== Segment at {chunk_data['start_time']:.0f}s - {chunk_data['end_time']:.0f}s ===\n"
             context_parts.append(types.Part.from_text(text=header_text))
 
             # Add visual description
@@ -126,9 +126,12 @@ class ChatHandler:
 
             # Add system prompt
             system_text = (
-                "You are analyzing video clips. Answer questions about the content based on "
-                "the visual descriptions, audio transcripts, and frames provided. "
-                "When referencing specific information, mention which clip and approximate timestamp it came from."
+                "You are analyzing video content. The user has selected one or more videos from their library. "
+                "Each video may have multiple segments with visual descriptions, audio transcripts, and frames. "
+                "Treat all segments from the same video as one continuous piece of content. "
+                "Answer questions naturally as if discussing the video(s) as a whole — do not reference "
+                "individual clips, segments, chunk IDs, or internal identifiers. "
+                "You may reference approximate timestamps when it helps the user locate a specific moment."
             )
             system_prompt = types.Part.from_text(text=system_text)
 

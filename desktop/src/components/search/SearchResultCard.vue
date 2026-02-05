@@ -13,6 +13,7 @@
         :start-time="result.start_time"
         :end-time="result.end_time"
         :video-title="result.title"
+        :hide-video-title="hideVideoTitle"
         class="mb-4"
       />
 
@@ -75,9 +76,12 @@ import { getThumbnailUrl } from '@/types/video'
 
 interface Props {
   result: SearchResult
+  hideVideoTitle?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  hideVideoTitle: false
+})
 const emit = defineEmits<{
   'click': []
   'add-to-chat': [result: SearchResult]

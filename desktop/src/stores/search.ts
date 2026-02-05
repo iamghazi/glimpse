@@ -4,7 +4,8 @@ import type {
   SearchOptions,
   SearchResult,
   ProcessingStatus,
-  ProcessingTier
+  ProcessingTier,
+  VideoResultGroup
 } from '@/types/search'
 
 export const useSearchStore = defineStore('search', () => {
@@ -34,6 +35,35 @@ export const useSearchStore = defineStore('search', () => {
 
   const filteredResults = computed(() => {
     return results.value.filter(r => r.score >= options.value.confidence_threshold)
+  })
+
+  const groupedResults = computed<VideoResultGroup[]>(() => {
+    const groups = new Map<string, VideoResultGroup>()
+
+    for (const result of filteredResults.value) {
+      let group = groups.get(result.video_id)
+      if (!group) {
+        group = {
+          video_id: result.video_id,
+          title: result.title,
+          best_score: result.score,
+          clips: []
+        }
+        groups.set(result.video_id, group)
+      }
+      group.clips.push(result)
+      if (result.score > group.best_score) {
+        group.best_score = result.score
+      }
+    }
+
+    // Sort clips within each group by score descending
+    for (const group of groups.values()) {
+      group.clips.sort((a, b) => b.score - a.score)
+    }
+
+    // Sort groups by best_score descending
+    return Array.from(groups.values()).sort((a, b) => b.best_score - a.best_score)
   })
 
   // Actions
@@ -128,6 +158,7 @@ export const useSearchStore = defineStore('search', () => {
     hasResults,
     hasSearched,
     filteredResults,
+    groupedResults,
 
     // Actions
     search,
