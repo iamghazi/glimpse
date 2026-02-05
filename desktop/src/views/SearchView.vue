@@ -29,7 +29,7 @@
           <!-- Search Stats -->
           <div v-if="searchStore.hasSearched && !searchStore.loading">
             <SearchStats
-              :num-results="searchStore.totalResults"
+              :num-results="searchStore.groupedResults.length"
               :search-time="searchStore.searchTime"
               :cascaded-reranking="searchStore.options.use_cascaded_reranking"
             />

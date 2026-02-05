@@ -129,14 +129,26 @@ const timeRange = computed(() => {
   return formatTimestampRange(minStart, maxEnd)
 })
 
-// Collect representative frames from all clips (one per clip)
+// Collect evenly-sampled frames from each clip (max 6 per clip)
 const allFrames = computed(() => {
-  return props.group.clips
-    .map(clip => {
-      const url = getThumbnailUrl(clip.representative_frame)
-      return url ? { url, alt: `${clip.chunk_id}` } : null
-    })
-    .filter(Boolean) as { url: string; alt: string }[]
+  const frames: { url: string; alt: string }[] = []
+  const maxPerClip = 6
+  for (const clip of props.group.clips) {
+    const paths = clip.frame_paths || []
+    if (paths.length === 0) continue
+
+    const sampled = paths.length <= maxPerClip
+      ? paths
+      : Array.from({ length: maxPerClip }, (_, i) =>
+          paths[Math.floor((paths.length - 1) * (i / (maxPerClip - 1)))]
+        )
+
+    for (const path of sampled) {
+      const url = getThumbnailUrl(path)
+      if (url) frames.push({ url, alt: clip.chunk_id })
+    }
+  }
+  return frames
 })
 
 // Collect non-empty visual descriptions
@@ -146,10 +158,10 @@ const visualDescriptions = computed(() => {
     .filter(d => d && d.trim())
 })
 
-// Collect non-empty audio transcripts
+// Collect non-empty audio transcripts, stripping redundant "Transcript:" label
 const audioTranscripts = computed(() => {
   return props.group.clips
-    .map(c => c.audio_transcript)
+    .map(c => c.audio_transcript?.replace(/ ?Transcript: ?/g, ' ').trim())
     .filter(t => t && t.trim())
 })
 </script>
