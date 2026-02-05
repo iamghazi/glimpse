@@ -20,6 +20,14 @@ export interface SearchResult {
   frame_paths: string[]
 }
 
+// Grouped search results by video
+export interface VideoResultGroup {
+  video_id: string
+  title: string
+  best_score: number       // max score among clips (for sorting groups)
+  clips: SearchResult[]    // individual results, score-descending
+}
+
 // Search request
 export interface SearchRequest {
   query: string

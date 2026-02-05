@@ -161,7 +161,7 @@ Example output format:
             enhanced = response.text.strip()
 
             # Combine raw transcript with enhanced context
-            return f"{enhanced} Transcript: {raw_transcript}"
+            return f"{enhanced} {raw_transcript}"
 
         except Exception as e:
             logger.warning(f"Transcript enhancement error: {e}")

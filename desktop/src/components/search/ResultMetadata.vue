@@ -17,14 +17,16 @@
       <span>{{ formatTimestampRange(startTime, endTime) }}</span>
     </div>
 
-    <div class="h-4 w-px bg-slate-200"></div>
+    <template v-if="!hideVideoTitle">
+      <div class="h-4 w-px bg-slate-200"></div>
 
-    <div class="flex items-center gap-1.5 text-slate-600">
-      <span class="material-symbols-outlined text-base">
-        movie
-      </span>
-      <span class="truncate">{{ videoTitle }}</span>
-    </div>
+      <div class="flex items-center gap-1.5 text-slate-600">
+        <span class="material-symbols-outlined text-base">
+          movie
+        </span>
+        <span class="truncate">{{ videoTitle }}</span>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -37,7 +39,10 @@ interface Props {
   startTime: number
   endTime: number
   videoTitle: string
+  hideVideoTitle?: boolean
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), {
+  hideVideoTitle: false
+})
 </script>

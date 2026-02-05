@@ -29,7 +29,7 @@
           <!-- Search Stats -->
           <div v-if="searchStore.hasSearched && !searchStore.loading">
             <SearchStats
-              :num-results="searchStore.totalResults"
+              :num-results="searchStore.groupedResults.length"
               :search-time="searchStore.searchTime"
               :cascaded-reranking="searchStore.options.use_cascaded_reranking"
             />
@@ -61,14 +61,13 @@
             :has-searched="searchStore.hasSearched"
           />
 
-          <!-- Search Results -->
+          <!-- Search Results (grouped by video) -->
           <div v-else class="space-y-4">
-            <SearchResultCard
-              v-for="result in searchStore.filteredResults"
-              :key="result.chunk_id"
-              :result="result"
-              @click="handleResultClick(result)"
-              @add-to-chat="handleAddToChat"
+            <VideoGroupCard
+              v-for="group in searchStore.groupedResults"
+              :key="group.video_id"
+              :group="group"
+              @add-all-to-chat="handleAddAllToChat"
               @play-clip="handlePlayClip"
             />
           </div>
@@ -93,9 +92,9 @@ import SearchOptions from '@/components/search/SearchOptions.vue'
 import ProcessingTierIndicator from '@/components/search/ProcessingTierIndicator.vue'
 import SearchStats from '@/components/search/SearchStats.vue'
 import EmptySearchState from '@/components/search/EmptySearchState.vue'
-import SearchResultCard from '@/components/search/SearchResultCard.vue'
+import VideoGroupCard from '@/components/search/VideoGroupCard.vue'
 import VideoModal from '@/components/video/VideoModal.vue'
-import type { SearchResult } from '@/types/search'
+import type { SearchResult, VideoResultGroup } from '@/types/search'
 import type { ActiveClip } from '@/types/chat'
 
 const router = useRouter()
@@ -115,13 +114,8 @@ function handleResetOptions() {
   })
 }
 
-function handleResultClick(result: SearchResult) {
-  // TODO: Open result detail modal or navigate to video
-  console.log('Result clicked:', result)
-}
-
-function handleAddToChat(result: SearchResult) {
-  const clip: ActiveClip = {
+function handleAddAllToChat(group: VideoResultGroup) {
+  const clips: ActiveClip[] = group.clips.map(result => ({
     clip_id: result.chunk_id,
     video_id: result.video_id,
     title: result.title,
@@ -129,11 +123,9 @@ function handleAddToChat(result: SearchResult) {
     end_time: result.end_time,
     thumbnail: result.representative_frame,
     confidence_score: result.score
-  }
+  }))
 
-  chatStore.addClip(clip)
-
-  // Navigate to chat
+  chatStore.addClips(clips)
   router.push('/chat')
 }
 
