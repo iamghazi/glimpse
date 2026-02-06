@@ -34,10 +34,10 @@
 
 <script setup lang="ts">
 import BaseButton from '@/components/ui/BaseButton.vue'
-import type { ProcessingStatus } from '@/types/video'
+import type { VideoStatus } from '@/types/video'
 
 interface Props {
-  status: ProcessingStatus
+  status: VideoStatus
 }
 
 const props = defineProps<Props>()
@@ -47,6 +47,6 @@ const emit = defineEmits<{
   'delete': []
 }>()
 
-const showViewChunks = props.status === 'indexed' || props.status === 'ready'
+const showViewChunks = props.status === 'indexed'
 const showViewDetails = true
 </script>

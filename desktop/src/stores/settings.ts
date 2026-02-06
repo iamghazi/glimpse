@@ -41,12 +41,11 @@ export const useSettingsStore = defineStore('settings', () => {
 
         // Save to local store
         await window.electron.settings.save(backendSettings)
-      } catch (backendError) {
-        console.warn('Backend unavailable, using local settings:', backendError)
+      } catch {
+        // Backend unavailable, use local settings
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load settings'
-      console.error('Error loading settings:', err)
     } finally {
       loading.value = false
     }
@@ -80,7 +79,6 @@ export const useSettingsStore = defineStore('settings', () => {
       return true
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to save settings'
-      console.error('Error saving settings:', err)
       return false
     } finally {
       loading.value = false
@@ -98,7 +96,6 @@ export const useSettingsStore = defineStore('settings', () => {
       validationErrors.value = []
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to reset settings'
-      console.error('Error resetting settings:', err)
     } finally {
       loading.value = false
     }

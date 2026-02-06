@@ -1,1 +1,1 @@
-console.log("Hello via Bun!");
+// Desktop app entry point

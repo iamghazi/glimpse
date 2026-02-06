@@ -79,7 +79,6 @@ const gridColumns = [1, 2, 3, 4, 5]
 
 const statusOptions = [
   { value: 'all', label: 'All Videos' },
-  { value: 'ready', label: 'Ready' },
   { value: 'indexed', label: 'Indexed' },
   { value: 'processing', label: 'Processing' },
   { value: 'uploading', label: 'Uploading' },

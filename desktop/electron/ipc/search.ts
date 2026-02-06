@@ -37,7 +37,6 @@ export function registerSearchHandlers() {
 
       return response.data
     } catch (error) {
-      console.error('Search failed:', error)
       throw new Error(`Search failed: ${error}`)
     }
   })

@@ -46,13 +46,10 @@ export const useBackendStore = defineStore('backend', () => {
 
   // Actions
   async function checkHealth() {
-    console.log('[Store] Starting health check...')
     checking.value = true
 
     try {
-      console.log('[Store] Calling window.electron.backend.health()...')
       const health: HealthCheckResponse = await window.electron.backend.health()
-      console.log('[Store] Health check response:', health)
 
       status.value = 'healthy'
       qdrantConnected.value = health.qdrant_connected
@@ -60,13 +57,12 @@ export const useBackendStore = defineStore('backend', () => {
       lastChecked.value = new Date()
 
       return true
-    } catch (err) {
+    } catch {
       status.value = 'unhealthy'
       qdrantConnected.value = false
       version.value = null
       lastChecked.value = new Date()
 
-      console.error('[Store] Backend health check failed:', err)
       return false
     } finally {
       checking.value = false
@@ -91,7 +87,6 @@ export const useBackendStore = defineStore('backend', () => {
       gcpConnected.value = false
       gcpError.value = err instanceof Error ? err.message : 'Unknown error occurred'
 
-      console.error('GCP connection test failed:', err)
       return false
     } finally {
       testingGCP.value = false

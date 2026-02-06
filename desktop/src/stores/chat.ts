@@ -80,7 +80,6 @@ export const useChatStore = defineStore('chat', () => {
       messages.value.push(assistantMessage)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to send message'
-      console.error('Chat error:', err)
 
       // Add error message
       const errorMessage: ChatMessage = {

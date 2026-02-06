@@ -81,7 +81,7 @@
         <!-- Footer -->
         <div class="border-t border-slate-200 p-4 flex justify-end gap-3">
           <BaseButton
-            v-if="video.status === 'indexed' || video.status === 'ready'"
+            v-if="video.status === 'indexed'"
             variant="ghost"
             icon="split_scene"
             @click="emit('view-chunks')"

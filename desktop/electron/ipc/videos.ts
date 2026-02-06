@@ -8,12 +8,9 @@ export function registerVideoHandlers() {
   // Get all videos
   ipcMain.handle('videos:get-all', async () => {
     try {
-      console.log('[IPC] videos:get-all - requesting:', `${API_BASE_URL}/videos`)
       const response = await axios.get(`${API_BASE_URL}/videos`)
-      console.log('[IPC] videos:get-all - success:', response.data)
       return response.data
     } catch (error) {
-      console.error('[IPC] videos:get-all - failed:', error)
       throw new Error(`Failed to fetch videos: ${error}`)
     }
   })
@@ -24,7 +21,6 @@ export function registerVideoHandlers() {
       const response = await axios.get(`${API_BASE_URL}/videos/${videoId}`)
       return response.data
     } catch (error) {
-      console.error('Failed to fetch video:', error)
       throw new Error(`Failed to fetch video: ${error}`)
     }
   })
@@ -57,7 +53,6 @@ export function registerVideoHandlers() {
 
       return response.data
     } catch (error) {
-      console.error('Failed to upload video:', error)
       throw new Error(`Failed to upload video: ${error}`)
     }
   })
@@ -67,7 +62,6 @@ export function registerVideoHandlers() {
     try {
       await axios.delete(`${API_BASE_URL}/videos/${videoId}`)
     } catch (error) {
-      console.error('Failed to delete video:', error)
       throw new Error(`Failed to delete video: ${error}`)
     }
   })
@@ -78,7 +72,6 @@ export function registerVideoHandlers() {
       const response = await axios.get(`${API_BASE_URL}/videos/${videoId}/chunks`)
       return response.data
     } catch (error) {
-      console.error('Failed to fetch video chunks:', error)
       throw new Error(`Failed to fetch video chunks: ${error}`)
     }
   })
