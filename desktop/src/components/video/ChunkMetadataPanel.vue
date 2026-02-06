@@ -3,7 +3,8 @@ import { computed } from 'vue'
 import type { VideoChunk } from '@/types/video'
 import { formatTimeRange, getVideoUrl } from '@/types/video'
 import { useChatStore } from '@/stores/chat'
-import type { SearchResult } from '@/types/video'
+import type { ActiveClip } from '@/types/chat'
+import { getThumbnailUrl } from '@/types/video'
 
 interface Props {
   chunk: VideoChunk
@@ -28,26 +29,22 @@ const timeRange = computed(() => {
 })
 
 const isAddedToChat = computed(() => {
-  return chatStore.attachedClips.some((c) => c.chunk_id === props.chunk.chunk_id)
+  return chatStore.activeClips.some((c) => c.clip_id === props.chunk.chunk_id)
 })
 
 // Actions
 const addToChat = () => {
-  // Convert VideoChunk to SearchResult format
-  const searchResult: SearchResult = {
-    chunk_id: props.chunk.chunk_id,
+  // Convert VideoChunk to ActiveClip format
+  const activeClip: ActiveClip = {
+    clip_id: props.chunk.chunk_id,
     video_id: props.chunk.video_id,
     title: props.videoTitle,
     start_time: props.chunk.start_time,
     end_time: props.chunk.end_time,
-    visual_description: props.chunk.visual_description,
-    audio_transcript: props.chunk.audio_transcript,
-    score: 1.0, // Not from search, so score is 1.0
-    video_path: '', // Will be filled by store if needed
-    representative_frame: props.chunk.representative_frame
+    thumbnail: getThumbnailUrl(props.chunk.representative_frame) || ''
   }
 
-  chatStore.addClip(searchResult)
+  chatStore.addClip(activeClip)
 }
 </script>
 

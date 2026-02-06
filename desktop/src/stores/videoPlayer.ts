@@ -47,7 +47,6 @@ export const useVideoPlayerStore = defineStore('videoPlayer', () => {
       isModalOpen.value = true
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load video'
-      console.error('Failed to open video:', err)
       throw err
     } finally {
       loading.value = false

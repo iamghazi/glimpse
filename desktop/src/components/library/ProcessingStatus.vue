@@ -19,7 +19,7 @@
 import { computed } from 'vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseProgress from '@/components/ui/BaseProgress.vue'
-import type { ProcessingStatus as Status } from '@/types/video'
+import type { VideoStatus as Status } from '@/types/video'
 
 interface Props {
   status: Status
@@ -34,7 +34,7 @@ const statusVariant = computed(() => {
     processing: 'warning',
     indexed: 'success',
     failed: 'error',
-    ready: 'success'
+    unknown: 'default'
   }
   return variants[props.status]
 })
@@ -45,7 +45,7 @@ const statusIcon = computed(() => {
     processing: 'sync',
     indexed: 'check_circle',
     failed: 'error',
-    ready: 'check_circle'
+    unknown: 'help'
   }
   return icons[props.status]
 })
@@ -56,7 +56,7 @@ const statusLabel = computed(() => {
     processing: 'Processing',
     indexed: 'Indexed',
     failed: 'Failed',
-    ready: 'Ready'
+    unknown: 'Unknown'
   }
   return labels[props.status]
 })

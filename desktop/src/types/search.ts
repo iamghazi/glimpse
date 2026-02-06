@@ -1,3 +1,5 @@
+import { formatTimeRange } from '@/utils/format'
+
 // Search options
 export interface SearchOptions {
   top_k: number  // max results (1-50)
@@ -54,7 +56,7 @@ export interface SearchResponse {
 // Processing tier status
 export type ProcessingTier = 'embedding' | 'initial-ranking' | 'reranking'
 
-export interface ProcessingStatus {
+export interface SearchProcessingStatus {
   currentTier: ProcessingTier | null
   completed: ProcessingTier[]
   isProcessing: boolean
@@ -77,15 +79,9 @@ export function getConfidenceBadgeVariant(level: ConfidenceLevel): 'success' | '
   }
 }
 
-// Helper to format timestamp range
+// Helper to format timestamp range (re-export from utils)
 export function formatTimestampRange(startTime: number, endTime: number): string {
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-
-  return `${formatTime(startTime)} - ${formatTime(endTime)}`
+  return formatTimeRange(startTime, endTime)
 }
 
 // Helper to format confidence percentage

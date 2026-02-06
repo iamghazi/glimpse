@@ -1,3 +1,5 @@
+import { formatTimeRange } from '@/utils/format'
+
 // Chat message role
 export type MessageRole = 'user' | 'assistant'
 
@@ -81,13 +83,7 @@ export function formatMessageTime(date: Date): string {
   })
 }
 
-// Helper to format clip timestamp
+// Helper to format clip timestamp (re-export from utils)
 export function formatClipTimestamp(startTime: number, endTime: number): string {
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-
-  return `${formatTime(startTime)} - ${formatTime(endTime)}`
+  return formatTimeRange(startTime, endTime)
 }

@@ -16,11 +16,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { ProcessingStatus, ProcessingTier } from '@/types/search'
+import type { SearchProcessingStatus, ProcessingTier } from '@/types/search'
 
 interface Props {
-  status: ProcessingStatus
+  status: SearchProcessingStatus
 }
 
 const props = defineProps<Props>()

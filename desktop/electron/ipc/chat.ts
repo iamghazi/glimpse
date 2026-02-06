@@ -16,7 +16,6 @@ export function registerChatHandlers() {
 
       return response.data
     } catch (error) {
-      console.error('Chat request failed:', error)
       throw new Error(`Chat request failed: ${error}`)
     }
   })

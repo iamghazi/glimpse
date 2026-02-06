@@ -55,10 +55,8 @@ class Settings(BaseSettings):
 
     # CORS Configuration
     CORS_ORIGINS: List[str] = [
-        "http://localhost:3000",  # Desktop app (Electron/Tauri)
-        "http://localhost:8501",  # Streamlit (deprecated)
+        "http://localhost:3000",  # Desktop app (Electron)
         "http://127.0.0.1:3000",
-        "http://127.0.0.1:8501",
     ]
 
     # API Server Configuration

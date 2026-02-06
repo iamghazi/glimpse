@@ -49,16 +49,6 @@ app.whenReady().then(async () => {
   registerSearchHandlers()
   registerChatHandlers()
 
-  // Test backend connectivity on startup
-  const axios = (await import('axios')).default
-  console.log('[Main] Testing backend connectivity...')
-  try {
-    const response = await axios.get('http://localhost:8000/health', { timeout: 5000 })
-    console.log('[Main] Backend is reachable:', response.data)
-  } catch (error) {
-    console.error('[Main] Backend is NOT reachable:', error)
-  }
-
   createWindow()
 
   app.on('activate', () => {

@@ -3,6 +3,8 @@
  * Mirrors backend models from src/models/video.py and src/models/search.py
  */
 
+import { formatTime, formatTimeRange } from '@/utils/format'
+
 /**
  * Metadata for a video in the library
  */
@@ -59,7 +61,7 @@ export interface VideoUploadRequest {
 /**
  * Processing status for video uploads
  */
-export interface ProcessingStatus {
+export interface VideoProcessingStatus {
   status: 'uploading' | 'processing' | 'indexing' | 'complete' | 'error'
   progress: number // 0-100
   message?: string
@@ -80,35 +82,6 @@ export interface VideoChunk {
   representative_frame: string
 }
 
-/**
- * Search result from video library search
- */
-export interface SearchResult {
-  chunk_id: string
-  video_id: string
-  title: string
-  start_time: number
-  end_time: number
-  visual_description: string
-  audio_transcript: string
-  score: number
-  video_path: string
-  representative_frame: string
-}
-
-/**
- * Complete search response
- */
-export interface SearchResponse {
-  query: string
-  num_results: number
-  results: SearchResult[]
-  config: {
-    score_threshold?: number
-    confidence_threshold: number
-    cascaded_reranking: boolean
-  }
-}
 
 /**
  * Video list response
@@ -171,24 +144,14 @@ export function getVideoStatus(metadata: VideoMetadata): VideoStatus {
 
 /**
  * Helper to format video duration (seconds to MM:SS or HH:MM:SS)
+ * Re-exported from utils/format.ts for backward compatibility
  */
 export function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = Math.floor(seconds % 60)
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-  return `${minutes}:${secs.toString().padStart(2, '0')}`
+  return formatTime(seconds)
 }
 
-/**
- * Helper to format timestamp range
- */
-export function formatTimeRange(startTime: number, endTime: number): string {
-  return `${formatDuration(startTime)} - ${formatDuration(endTime)}`
-}
+// Re-export formatTimeRange from utils
+export { formatTimeRange }
 
 /**
  * Helper to convert file path to file:// URL for Electron

@@ -7,7 +7,7 @@ import type {
   VideoViewMode,
   VideoUploadRequest,
   VideoChunk,
-  ProcessingStatus
+  VideoStatus
 } from '@/types/video'
 
 export const useLibraryStore = defineStore('library', () => {
@@ -67,19 +67,16 @@ export const useLibraryStore = defineStore('library', () => {
     videos.value.filter(v => v.status === 'processing' || v.status === 'uploading')
   )
   const indexedVideos = computed(() =>
-    videos.value.filter(v => v.status === 'indexed' || v.status === 'ready')
+    videos.value.filter(v => v.status === 'indexed')
   )
 
   // Actions
   async function loadVideos() {
-    console.log('[Library] Loading videos...')
     loading.value = true
     error.value = null
 
     try {
-      console.log('[Library] Calling window.electron.videos.getAll()...')
       const response = await window.electron.videos.getAll()
-      console.log('[Library] Response:', response)
 
       // Transform to VideoWithState
       videos.value = response.videos.map(v => ({
@@ -87,10 +84,8 @@ export const useLibraryStore = defineStore('library', () => {
         status: determineStatus(v),
         chunkCount: undefined  // Will be loaded separately if needed
       }))
-      console.log('[Library] Loaded', videos.value.length, 'videos')
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load videos'
-      console.error('[Library] Error loading videos:', err)
     } finally {
       loading.value = false
     }
@@ -178,8 +173,7 @@ export const useLibraryStore = defineStore('library', () => {
       }
 
       return response.chunks
-    } catch (err) {
-      console.error('Error loading chunks:', err)
+    } catch {
       return []
     }
   }
@@ -196,10 +190,10 @@ export const useLibraryStore = defineStore('library', () => {
     selectedVideoId.value = videoId
   }
 
-  function determineStatus(video: Video): ProcessingStatus {
+  function determineStatus(video: Video): VideoStatus {
     if (video.indexed_at) return 'indexed'
     if (video.uploaded_at) return 'processing'
-    return 'ready'
+    return 'unknown'
   }
 
   return {

@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import type {
   SearchOptions,
   SearchResult,
-  ProcessingStatus,
+  SearchProcessingStatus,
   ProcessingTier,
   VideoResultGroup
 } from '@/types/search'
@@ -23,7 +23,7 @@ export const useSearchStore = defineStore('search', () => {
     confidence_threshold: 0.0
   })
 
-  const processingStatus = ref<ProcessingStatus>({
+  const processingStatus = ref<SearchProcessingStatus>({
     currentTier: null,
     completed: [],
     isProcessing: false
@@ -114,7 +114,6 @@ export const useSearchStore = defineStore('search', () => {
       processingStatus.value.isProcessing = false
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Search failed'
-      console.error('Search error:', err)
       processingStatus.value.isProcessing = false
     } finally {
       loading.value = false
