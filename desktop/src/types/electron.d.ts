@@ -3,6 +3,7 @@ import type { HealthCheckResponse } from './backend'
 import type { Video, VideoChunk } from './video'
 import type { SearchResult } from './search'
 import type { ChatRequest } from './chat'
+import type { EditRequest, EditResponse, AgentStatus } from './agent'
 
 declare global {
   interface Window {
@@ -49,6 +50,20 @@ declare global {
       }
       chat: {
         sendMessage: (request: ChatRequest) => Promise<{ answer: string }>
+      }
+      agent: {
+        startEdit: (request: EditRequest) => Promise<EditResponse>
+        getSession: (sessionId: string) => Promise<{
+          session_id: string
+          status: AgentStatus
+          preview_path?: string
+          iterations: number
+        }>
+        approveSession: (sessionId: string) => Promise<{
+          success: boolean
+          output_path?: string
+        }>
+        provideFeedback: (sessionId: string, feedback: string) => Promise<EditResponse>
       }
     }
   }

@@ -83,6 +83,11 @@ const navItems: NavItem[] = [
     icon: 'chat'
   },
   {
+    path: '/agent',
+    label: 'AI Editor',
+    icon: 'smart_toy'
+  },
+  {
     path: '/settings',
     label: 'Settings',
     icon: 'settings'

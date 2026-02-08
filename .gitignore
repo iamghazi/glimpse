@@ -30,3 +30,16 @@ qdrant_storage/
 # Backup and log files
 *.bak
 *.log
+
+# Documentation (local only)
+docs/**
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Agent exports
+data/exports/*
+!data/exports/.gitkeep
+data/agent_sessions/
+data/agent_projects/

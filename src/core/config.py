@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     FRAMES_DIR: Path = DATA_DIR / "frames"
     METADATA_DIR: Path = DATA_DIR / "metadata"
     QDRANT_STORAGE_DIR: Path = DATA_DIR / "qdrant_storage"
+    EXPORTS_DIR: Path = DATA_DIR / "exports"
+    PROJECTS_DB: Path = DATA_DIR / "projects.db"
+
+    # Agent Configuration
+    AGENT_MAX_ITERATIONS: int = 5
+    AGENT_PREVIEW_WIDTH: int = 854
+    AGENT_PREVIEW_HEIGHT: int = 480
+    AGENT_RENDER_TIMEOUT: int = 300  # 5 minutes
 
     # Prompts Directory
     PROMPTS_DIR: Path = Path("prompts")
@@ -83,6 +91,7 @@ class Settings(BaseSettings):
             self.METADATA_DIR,
             self.QDRANT_STORAGE_DIR,
             self.PROMPTS_DIR,
+            self.EXPORTS_DIR,
         ]
 
         for directory in directories:

@@ -1,0 +1,571 @@
+"""
+Agent Executor
+Executes tool calls from the agent plan
+"""
+import logging
+from typing import Any, Dict, Optional
+
+from src.core.config import settings
+from src.models.agent import AgentSession, AgentPlan, ExecutionResult, PlanStep
+from src.models.project import Project, TimelineClip
+from src.models.search import SearchResult
+from src.agent.state import state_manager
+from src.search.service import search_videos
+from src.search.vector_db import VideoVectorDB
+
+logger = logging.getLogger(__name__)
+
+
+class AgentExecutor:
+    """Executes agent plans by calling tools"""
+
+    def __init__(self):
+        self.vector_db = VideoVectorDB()
+
+    def _resolve_params(
+        self,
+        params: Dict[str, Any],
+        step_results: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Resolve template variables in parameters using previous step results.
+
+        Handles patterns like:
+        - {search_clips.clips[0].video_id}
+        - {create_project.project_id}
+        - {search_clips.results[0].source_path}
+
+        Args:
+            params: Parameters that may contain template variables
+            step_results: Results from previous steps keyed by tool name
+
+        Returns:
+            Resolved parameters with actual values
+        """
+        import re
+
+        def resolve_value(value: Any) -> Any:
+            if not isinstance(value, str):
+                return value
+
+            # Pattern: {step_name.path.to.value} or {step_name.array[index].field}
+            pattern = r'\{([a-z_]+)\.([^}]+)\}'
+
+            resolved_value = None  # Track the resolved value for type preservation
+
+            def replacer(match):
+                nonlocal resolved_value
+                step_name = match.group(1)
+                path = match.group(2)
+
+                if step_name not in step_results:
+                    logger.warning(f"Step result not found: {step_name}")
+                    return match.group(0)  # Return original if not found
+
+                result = step_results[step_name]
+
+                # Navigate the path (e.g., "clips[0].video_id" or "project_id")
+                try:
+                    for part in re.split(r'\.', path):
+                        # Handle array access like "clips[0]" or "results[1]"
+                        array_match = re.match(r'([a-z_]+)\[(\d+)\]', part)
+                        if array_match:
+                            key = array_match.group(1)
+                            index = int(array_match.group(2))
+                            result = result[key][index]
+                        else:
+                            result = result[part] if isinstance(result, dict) else getattr(result, part)
+
+                    resolved_value = result  # Store for type preservation
+                    return str(result) if result is not None else ""
+                except (KeyError, IndexError, AttributeError, TypeError) as e:
+                    logger.warning(f"Failed to resolve {match.group(0)}: {e}")
+                    return match.group(0)
+
+            resolved = re.sub(pattern, replacer, value)
+
+            # If the entire string was a single variable, preserve its original type
+            if resolved_value is not None and value.startswith('{') and value.endswith('}') and value.count('{') == 1:
+                return resolved_value
+
+            # Try to convert numeric strings to appropriate types
+            if resolved != value:  # Something was resolved
+                try:
+                    if '.' in resolved:
+                        return float(resolved)
+                    elif resolved.isdigit():
+                        return int(resolved)
+                except (ValueError, AttributeError):
+                    pass
+
+            return resolved
+
+        # Recursively resolve all string values in params
+        resolved = {}
+        for key, value in params.items():
+            if isinstance(value, dict):
+                resolved[key] = self._resolve_params(value, step_results)
+            elif isinstance(value, list):
+                resolved[key] = [resolve_value(v) for v in value]
+            else:
+                resolved[key] = resolve_value(value)
+
+        return resolved
+
+    def _has_unresolved_placeholders(self, params: Dict[str, Any]) -> bool:
+        """Check if any parameters contain unresolved placeholders like {step.path}"""
+        import re
+        pattern = r'\{[a-z_]+\.[^}]+\}'
+
+        def check_value(value: Any) -> bool:
+            if isinstance(value, str):
+                return bool(re.search(pattern, value))
+            elif isinstance(value, dict):
+                return any(check_value(v) for v in value.values())
+            elif isinstance(value, list):
+                return any(check_value(v) for v in value)
+            return False
+
+        return any(check_value(v) for v in params.values())
+
+    async def execute_plan(
+        self,
+        plan: AgentPlan,
+        session: AgentSession
+    ) -> ExecutionResult:
+        """
+        Execute all steps in a plan sequentially
+
+        Args:
+            plan: The plan to execute
+            session: Current agent session
+
+        Returns:
+            ExecutionResult with success status and outputs
+        """
+        logger.info(f"🚀 Executing plan with {len(plan.steps)} steps")
+
+        result = ExecutionResult(
+            success=True,
+            clip_count=0,
+            tool_results=[]
+        )
+
+        project: Optional[Project] = None
+        if session.project_id:
+            project = state_manager.get_project(session.project_id)
+
+        # Store results from each step for variable substitution
+        step_results: Dict[str, Any] = {}
+
+        for i, step in enumerate(plan.steps):
+            logger.info(f"📍 Step {i + 1}/{len(plan.steps)}: {step.tool}")
+
+            # Substitute variables in params from previous step results
+            resolved_params = self._resolve_params(step.params, step_results)
+            logger.debug(f"Params: {resolved_params}")
+
+            # Check for unresolved placeholders (e.g., clips[2] when only 2 clips exist)
+            if self._has_unresolved_placeholders(resolved_params):
+                logger.warning(f"⚠️ Skipping step {i + 1}: unresolved placeholders in params")
+                step.executed = True
+                step.result = {"skipped": True, "reason": "unresolved placeholders"}
+                result.tool_results.append({
+                    "tool": step.tool,
+                    "success": True,
+                    "skipped": True,
+                    "reason": "Referenced data not available (e.g., clip index out of range)"
+                })
+                continue
+
+            try:
+                tool_result = await self._execute_tool(
+                    step.tool,
+                    resolved_params,
+                    project,
+                    session
+                )
+
+                # Store result for variable substitution in future steps
+                step_results[step.tool] = tool_result
+
+                step.executed = True
+                step.result = tool_result
+                result.tool_results.append({
+                    "tool": step.tool,
+                    "success": True,
+                    "result": tool_result
+                })
+
+                # Handle special tool outputs
+                if step.tool == "create_project" and tool_result.get("project_id"):
+                    result.project_id = tool_result["project_id"]
+                    session.project_id = tool_result["project_id"]
+                    project = state_manager.get_project(result.project_id)
+
+                if step.tool == "render_preview" and tool_result.get("output_path"):
+                    result.preview_path = tool_result["output_path"]
+                    result.duration = tool_result.get("duration", 0)
+
+                logger.info(f"✅ Step {i + 1} complete")
+
+            except Exception as e:
+                logger.error(f"❌ Step {i + 1} failed: {e}")
+                step.executed = True
+                step.result = {"error": str(e)}
+                result.tool_results.append({
+                    "tool": step.tool,
+                    "success": False,
+                    "error": str(e)
+                })
+                result.success = False
+                result.error = f"Step {i + 1} ({step.tool}) failed: {e}"
+                break
+
+        # Update clip count from final project state
+        if project:
+            result.clip_count = project.clip_count
+
+        logger.info(f"{'✅' if result.success else '❌'} Plan execution {'complete' if result.success else 'failed'}")
+        return result
+
+    async def _execute_tool(
+        self,
+        tool_name: str,
+        params: Dict[str, Any],
+        project: Optional[Project],
+        session: AgentSession
+    ) -> Dict[str, Any]:
+        """Execute a single tool and return result"""
+
+        if tool_name == "search_clips":
+            return await self._search_clips(params)
+
+        elif tool_name == "get_clip_info":
+            return await self._get_clip_info(params)
+
+        elif tool_name == "create_project":
+            return await self._create_project(params, session)
+
+        elif tool_name == "add_clip_to_timeline":
+            return await self._add_clip_to_timeline(params, project)
+
+        elif tool_name == "remove_clip_from_timeline":
+            return await self._remove_clip_from_timeline(params, project)
+
+        elif tool_name == "update_clip_trim":
+            return await self._update_clip_trim(params, project)
+
+        elif tool_name == "reorder_clips":
+            return await self._reorder_clips(params, project)
+
+        elif tool_name == "get_timeline_info":
+            return await self._get_timeline_info(params, project)
+
+        elif tool_name == "render_preview":
+            return await self._render_preview(params, project)
+
+        else:
+            raise ValueError(f"Unknown tool: {tool_name}")
+
+    async def _search_clips(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Search for clips matching query"""
+        query = params["query"]
+        top_k = params.get("top_k", 10)
+
+        logger.info(f"🔍 Searching for: '{query}'")
+
+        results = search_videos(
+            query=query,
+            top_k=top_k,
+            use_cascaded_reranking=True,
+            confidence_threshold=0.5  # Lower threshold for agent
+        )
+
+        # Get video metadata to resolve actual file paths
+        video_paths = await self._get_video_paths()
+
+        clips = []
+        for r in results:
+            # Resolve actual video path from metadata
+            video_path = video_paths.get(r.video_id, f"data/videos/{r.video_id}.mp4")
+
+            clips.append({
+                "chunk_id": r.chunk_id,
+                "video_id": r.video_id,
+                "title": r.title,
+                "start_time": r.start_time,
+                "end_time": r.end_time,
+                "duration": r.end_time - r.start_time,
+                "visual_description": r.visual_description,
+                "audio_transcript": r.audio_transcript,
+                "score": r.score,
+                "video_path": video_path
+            })
+
+        logger.info(f"Found {len(clips)} clips")
+        return {
+            "query": query,
+            "num_results": len(clips),
+            "clips": clips
+        }
+
+    async def _get_video_paths(self) -> Dict[str, str]:
+        """Get mapping of video_id to actual file paths from metadata"""
+        import json
+        import os
+        from pathlib import Path
+
+        video_paths = {}
+        metadata_dir = Path("data/metadata")
+
+        if metadata_dir.exists():
+            for meta_file in metadata_dir.glob("*.json"):
+                try:
+                    with open(meta_file) as f:
+                        meta = json.load(f)
+                        video_id = meta.get("video_id")
+                        file_path = meta.get("file_path")
+                        if video_id and file_path:
+                            # Normalize path - try to find actual file
+                            if os.path.exists(file_path):
+                                video_paths[video_id] = file_path
+                            elif os.path.exists(f"data/{file_path}"):
+                                video_paths[video_id] = f"data/{file_path}"
+                            elif os.path.exists(f"data/videos/{video_id}.mp4"):
+                                video_paths[video_id] = f"data/videos/{video_id}.mp4"
+                            else:
+                                # Use the metadata path as fallback
+                                video_paths[video_id] = file_path
+                except Exception:
+                    pass
+
+        return video_paths
+
+    async def _get_clip_info(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Get detailed info about a specific clip"""
+        chunk_id = params["chunk_id"]
+
+        # Get chunk from vector DB
+        chunks = self.vector_db.get_chunks_by_ids([chunk_id])
+        if not chunks:
+            raise ValueError(f"Chunk not found: {chunk_id}")
+
+        chunk = chunks[0]
+        return {
+            "chunk_id": chunk["chunk_id"],
+            "video_id": chunk["video_id"],
+            "start_time": chunk["start_time"],
+            "end_time": chunk["end_time"],
+            "duration": chunk["end_time"] - chunk["start_time"],
+            "visual_description": chunk.get("visual_description", ""),
+            "audio_transcript": chunk.get("audio_transcript", "")
+        }
+
+    async def _create_project(
+        self,
+        params: Dict[str, Any],
+        session: AgentSession
+    ) -> Dict[str, Any]:
+        """Create a new editing project"""
+        name = params["name"]
+        goal = params["goal"]
+
+        project = Project(name=name, goal=goal)
+        state_manager.save_project(project)
+
+        logger.info(f"📁 Created project: {project.id}")
+        return {
+            "project_id": project.id,
+            "name": name,
+            "goal": goal
+        }
+
+    async def _add_clip_to_timeline(
+        self,
+        params: Dict[str, Any],
+        project: Optional[Project]
+    ) -> Dict[str, Any]:
+        """Add a clip to the timeline"""
+        if not project:
+            raise ValueError("No project created yet")
+
+        clip = TimelineClip(
+            video_id=params["video_id"],
+            source_path=params["source_path"],
+            cut_from=params["cut_from"],
+            cut_to=params["cut_to"],
+            order=len(project.clips),
+            transition=params.get("transition", "fade"),
+            transition_duration=params.get("transition_duration", 0.5)
+        )
+
+        project.add_clip(clip)
+        state_manager.save_project(project)
+
+        logger.info(f"➕ Added clip: {clip.cut_from:.1f}s - {clip.cut_to:.1f}s ({clip.duration:.1f}s)")
+        return {
+            "clip_id": clip.id,
+            "order": clip.order,
+            "duration": clip.duration,
+            "total_clips": project.clip_count,
+            "total_duration": project.total_duration
+        }
+
+    async def _remove_clip_from_timeline(
+        self,
+        params: Dict[str, Any],
+        project: Optional[Project]
+    ) -> Dict[str, Any]:
+        """Remove a clip from the timeline"""
+        if not project:
+            raise ValueError("No project created yet")
+
+        clip_index = params["clip_index"]
+        removed = project.remove_clip(clip_index)
+
+        if removed:
+            state_manager.save_project(project)
+            logger.info(f"➖ Removed clip at index {clip_index}")
+            return {
+                "removed": True,
+                "removed_clip_id": removed.id,
+                "total_clips": project.clip_count,
+                "total_duration": project.total_duration
+            }
+        else:
+            return {"removed": False, "error": f"Invalid clip index: {clip_index}"}
+
+    async def _update_clip_trim(
+        self,
+        params: Dict[str, Any],
+        project: Optional[Project]
+    ) -> Dict[str, Any]:
+        """Update clip trim points"""
+        if not project:
+            raise ValueError("No project created yet")
+
+        clip_index = params["clip_index"]
+        if clip_index < 0 or clip_index >= len(project.clips):
+            raise ValueError(f"Invalid clip index: {clip_index}")
+
+        clip = project.clips[clip_index]
+
+        if "cut_from" in params:
+            clip.cut_from = params["cut_from"]
+        if "cut_to" in params:
+            clip.cut_to = params["cut_to"]
+
+        state_manager.save_project(project)
+
+        logger.info(f"✂️ Updated clip {clip_index}: {clip.cut_from:.1f}s - {clip.cut_to:.1f}s")
+        return {
+            "clip_id": clip.id,
+            "cut_from": clip.cut_from,
+            "cut_to": clip.cut_to,
+            "duration": clip.duration,
+            "total_duration": project.total_duration
+        }
+
+    async def _reorder_clips(
+        self,
+        params: Dict[str, Any],
+        project: Optional[Project]
+    ) -> Dict[str, Any]:
+        """Reorder clips in timeline"""
+        if not project:
+            raise ValueError("No project created yet")
+
+        new_order = params["new_order"]
+        success = project.reorder_clips(new_order)
+
+        if success:
+            state_manager.save_project(project)
+            logger.info(f"🔄 Reordered clips: {new_order}")
+            return {
+                "success": True,
+                "new_order": new_order,
+                "total_clips": project.clip_count
+            }
+        else:
+            return {"success": False, "error": "Invalid order indices"}
+
+    async def _get_timeline_info(
+        self,
+        params: Dict[str, Any],
+        project: Optional[Project]
+    ) -> Dict[str, Any]:
+        """Get current timeline state"""
+        if not project:
+            raise ValueError("No project created yet")
+
+        clips_info = []
+        for clip in project.clips:
+            clips_info.append({
+                "order": clip.order,
+                "clip_id": clip.id,
+                "video_id": clip.video_id,
+                "cut_from": clip.cut_from,
+                "cut_to": clip.cut_to,
+                "duration": clip.duration,
+                "transition": clip.transition
+            })
+
+        return {
+            "project_id": project.id,
+            "name": project.name,
+            "goal": project.goal,
+            "total_clips": project.clip_count,
+            "total_duration": project.total_duration,
+            "clips": clips_info
+        }
+
+    async def _render_preview(
+        self,
+        params: Dict[str, Any],
+        project: Optional[Project]
+    ) -> Dict[str, Any]:
+        """Render a preview of the timeline"""
+        if not project:
+            raise ValueError("No project created yet")
+
+        if project.clip_count == 0:
+            raise ValueError("No clips in timeline to render")
+
+        # Import here to avoid circular imports
+        from src.services.video_editor import FFmpegRenderer
+
+        renderer = FFmpegRenderer()
+
+        # Convert clips to dict format for renderer
+        clips_data = []
+        for clip in project.clips:
+            clips_data.append({
+                "source_path": clip.source_path,
+                "cut_from": clip.cut_from,
+                "cut_to": clip.cut_to,
+                "transition": clip.transition,
+                "transition_duration": clip.transition_duration
+            })
+
+        # Generate output path
+        output_path = str(settings.EXPORTS_DIR / f"{project.id}-preview.mp4")
+
+        # Generate spec and render
+        spec = renderer.generate_spec(
+            clips=clips_data,
+            output_path=output_path
+        )
+
+        result = await renderer.render(spec, preview_mode=True)
+
+        if result["success"]:
+            logger.info(f"🎬 Preview rendered: {result['output_path']}")
+            return {
+                "success": True,
+                "output_path": result["output_path"],
+                "duration": result.get("duration", 0)
+            }
+        else:
+            logger.error(f"❌ Preview render failed: {result.get('error')}")
+            raise ValueError(f"Render failed: {result.get('error')}")

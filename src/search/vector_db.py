@@ -484,3 +484,46 @@ class VideoVectorDB:
             "points_count": collection_info.points_count,
             "status": collection_info.status,
         }
+
+    def get_chunks_by_ids(self, chunk_ids: list[str]) -> list[dict]:
+        """
+        Get chunks by their chunk IDs.
+
+        Args:
+            chunk_ids: List of chunk IDs to retrieve
+
+        Returns:
+            List of chunk dictionaries with metadata
+        """
+        chunks = []
+
+        for chunk_id in chunk_ids:
+            # Generate the same UUID that was used during upsert
+            point_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk_id))
+
+            try:
+                # Retrieve the point
+                points = self.client.retrieve(
+                    collection_name=self.collection_name,
+                    ids=[point_uuid],
+                    with_payload=True,
+                    with_vectors=False,
+                )
+
+                if points:
+                    payload = points[0].payload
+                    chunks.append({
+                        "chunk_id": payload["chunk_id"],
+                        "video_id": payload["video_id"],
+                        "start_time": payload["start_time"],
+                        "end_time": payload["end_time"],
+                        "duration": payload.get("duration", payload["end_time"] - payload["start_time"]),
+                        "visual_description": payload.get("visual_description", ""),
+                        "audio_transcript": payload.get("audio_transcript", ""),
+                        "representative_frame": payload.get("representative_frame", ""),
+                        "frame_paths": payload.get("frame_paths", []),
+                    })
+            except Exception as e:
+                logger.warning(f"Failed to retrieve chunk {chunk_id}: {e}")
+
+        return chunks

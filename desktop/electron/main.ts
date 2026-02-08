@@ -6,7 +6,8 @@ import {
   registerDialogHandlers,
   registerVideoHandlers,
   registerSearchHandlers,
-  registerChatHandlers
+  registerChatHandlers,
+  registerAgentHandlers
 } from './ipc'
 
 let mainWindow: BrowserWindow | null = null
@@ -48,6 +49,7 @@ app.whenReady().then(async () => {
   registerVideoHandlers()
   registerSearchHandlers()
   registerChatHandlers()
+  registerAgentHandlers()
 
   createWindow()
 

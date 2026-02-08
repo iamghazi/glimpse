@@ -4,6 +4,7 @@ import type { HealthCheckResponse } from '../src/types/backend'
 import type { Video, VideoChunk, VideoUploadRequest } from '../src/types/video'
 import type { SearchOptions, SearchResult } from '../src/types/search'
 import type { ChatRequest } from '../src/types/chat'
+import type { EditRequest, EditResponse, AgentStatus } from '../src/types/agent'
 
 contextBridge.exposeInMainWorld('electron', {
   settings: {
@@ -50,5 +51,19 @@ contextBridge.exposeInMainWorld('electron', {
   },
   chat: {
     sendMessage: (request: ChatRequest) => ipcRenderer.invoke('chat:send-message', request) as Promise<{ answer: string }>
+  },
+  agent: {
+    startEdit: (request: EditRequest) => ipcRenderer.invoke('agent:start-edit', request) as Promise<EditResponse>,
+    getSession: (sessionId: string) => ipcRenderer.invoke('agent:get-session', sessionId) as Promise<{
+      session_id: string
+      status: AgentStatus
+      preview_path?: string
+      iterations: number
+    }>,
+    approveSession: (sessionId: string) => ipcRenderer.invoke('agent:approve-session', sessionId) as Promise<{
+      success: boolean
+      output_path?: string
+    }>,
+    provideFeedback: (sessionId: string, feedback: string) => ipcRenderer.invoke('agent:provide-feedback', sessionId, feedback) as Promise<EditResponse>
   }
 })

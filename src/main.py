@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.core.config import settings
 from src.core.logging import setup_logging
-from src.api.routes import health, videos, search, chat, settings as settings_router
+from src.api.routes import health, videos, search, chat, settings as settings_router, agent
 
 # Setup logging
 setup_logging(log_level="INFO", log_file="api.log")
@@ -83,6 +83,7 @@ app.add_middleware(
 # Mount static files for serving frames/thumbnails
 app.mount("/frames", StaticFiles(directory=str(settings.FRAMES_DIR)), name="frames")
 app.mount("/data", StaticFiles(directory=str(settings.DATA_DIR)), name="data")
+app.mount("/exports", StaticFiles(directory=str(settings.EXPORTS_DIR)), name="exports")
 
 # Include routers
 app.include_router(health.router)
@@ -90,6 +91,7 @@ app.include_router(videos.router)
 app.include_router(search.router)
 app.include_router(chat.router)
 app.include_router(settings_router.router)
+app.include_router(agent.router)
 
-logger.info("📋 Registered routes: health, videos, search, chat, settings")
-logger.info("📁 Serving static files: /frames, /data")
+logger.info("📋 Registered routes: health, videos, search, chat, settings, agent")
+logger.info("📁 Serving static files: /frames, /data, /exports")
