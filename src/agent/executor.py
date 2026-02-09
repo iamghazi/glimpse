@@ -265,6 +265,9 @@ class AgentExecutor:
         elif tool_name == "render_preview":
             return await self._render_preview(params, project)
 
+        elif tool_name == "denoise_audio":
+            return await self._denoise_audio(params, project)
+
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
 
@@ -569,3 +572,73 @@ class AgentExecutor:
         else:
             logger.error(f"❌ Preview render failed: {result.get('error')}")
             raise ValueError(f"Render failed: {result.get('error')}")
+
+    async def _denoise_audio(
+        self,
+        params: Dict[str, Any],
+        project: Optional[Project]
+    ) -> Dict[str, Any]:
+        """Remove background noise from clip audio using RNNoise"""
+        import asyncio
+        from pathlib import Path
+
+        if not project:
+            raise ValueError("No project created yet")
+
+        model_path = settings.DENOISE_MODEL_PATH.resolve()
+        if not model_path.exists():
+            raise ValueError(f"Denoise model not found at {model_path}")
+
+        clip_index = params.get("clip_index")
+
+        if clip_index is not None:
+            if clip_index < 0 or clip_index >= len(project.clips):
+                raise ValueError(f"Invalid clip index: {clip_index}")
+            clips_to_process = [(clip_index, project.clips[clip_index])]
+        else:
+            clips_to_process = list(enumerate(project.clips))
+
+        if not clips_to_process:
+            return {"success": True, "processed": 0, "message": "No clips to denoise"}
+
+        processed = []
+        for idx, clip in clips_to_process:
+            input_path = clip.source_path
+            output_path = str(
+                settings.EXPORTS_DIR / f"{project.id}-denoised-{idx}.mp4"
+            )
+
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", input_path,
+                "-af", f"arnndn=m={model_path}",
+                "-c:v", "copy",
+                output_path,
+            ]
+
+            logger.info(f"🔇 Denoising clip {idx}: {input_path}")
+
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, stderr = await proc.communicate()
+
+            if proc.returncode != 0:
+                error_msg = stderr.decode()[-500:]
+                raise ValueError(
+                    f"FFmpeg denoise failed for clip {idx}: {error_msg}"
+                )
+
+            clip.source_path = output_path
+            processed.append(idx)
+            logger.info(f"✅ Denoised clip {idx} -> {output_path}")
+
+        state_manager.save_project(project)
+
+        return {
+            "success": True,
+            "processed": len(processed),
+            "clip_indices": processed,
+        }

@@ -34,6 +34,7 @@ Your goal is to search for relevant clips, assemble them into a timeline, and re
    - Trim clips to fit the target duration
 4. **Use appropriate transitions**: Match transition style to content (fade for calm, directional for dynamic)
 5. **Always render preview**: Call render_preview at the end to evaluate the result
+6. **Denoise when appropriate**: Use denoise_audio when the user mentions noise removal, clean audio, professional quality, or when working with clips that may have background noise. Call it after adding clips but before rendering the preview.
 
 ## Output Format
 
@@ -72,6 +73,7 @@ For request: "Create a 30-second highlight of product demos"
     {{"tool": "add_clip_to_timeline", "params": {{"project_id": "{{create_project.project_id}}", "video_id": "{{search_clips.clips[0].video_id}}", "source_path": "{{search_clips.clips[0].video_path}}", "cut_from": 0, "cut_to": 10, "transition": "fade"}}, "description": "Add first demo clip (10s)"}},
     {{"tool": "add_clip_to_timeline", "params": {{"project_id": "{{create_project.project_id}}", "video_id": "{{search_clips.clips[1].video_id}}", "source_path": "{{search_clips.clips[1].video_path}}", "cut_from": 0, "cut_to": 10, "transition": "fade"}}, "description": "Add second demo clip (10s)"}},
     {{"tool": "add_clip_to_timeline", "params": {{"project_id": "{{create_project.project_id}}", "video_id": "{{search_clips.clips[2].video_id}}", "source_path": "{{search_clips.clips[2].video_path}}", "cut_from": 0, "cut_to": 10, "transition": "fade"}}, "description": "Add third demo clip (10s)"}},
+    {{"tool": "denoise_audio", "params": {{"project_id": "{{create_project.project_id}}"}}, "description": "Remove background noise from all clips"}},
     {{"tool": "render_preview", "params": {{"project_id": "{{create_project.project_id}}"}}, "description": "Render 480p preview"}}
   ]
 }}

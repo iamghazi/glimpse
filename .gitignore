@@ -43,3 +43,4 @@ data/exports/*
 !data/exports/.gitkeep
 data/agent_sessions/
 data/agent_projects/
+data/models/

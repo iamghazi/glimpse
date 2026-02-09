@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     METADATA_DIR: Path = DATA_DIR / "metadata"
     QDRANT_STORAGE_DIR: Path = DATA_DIR / "qdrant_storage"
     EXPORTS_DIR: Path = DATA_DIR / "exports"
+    MODELS_DIR: Path = DATA_DIR / "models"
+    DENOISE_MODEL_PATH: Path = DATA_DIR / "models" / "cb.rnnn"
     PROJECTS_DB: Path = DATA_DIR / "projects.db"
 
     # Agent Configuration
@@ -92,6 +94,7 @@ class Settings(BaseSettings):
             self.QDRANT_STORAGE_DIR,
             self.PROMPTS_DIR,
             self.EXPORTS_DIR,
+            self.MODELS_DIR,
         ]
 
         for directory in directories:

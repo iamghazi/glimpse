@@ -182,6 +182,24 @@ AGENT_TOOLS = [
             },
             "required": ["project_id"]
         }
+    },
+    {
+        "name": "denoise_audio",
+        "description": "Remove background noise from clip audio using AI-based noise suppression (RNNoise). Processes one or all clips in the project timeline.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project ID containing the clips to denoise"
+                },
+                "clip_index": {
+                    "type": "integer",
+                    "description": "Index of a specific clip to denoise (0-indexed). If omitted, all clips are denoised."
+                }
+            },
+            "required": ["project_id"]
+        }
     }
 ]
 
