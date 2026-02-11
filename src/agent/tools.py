@@ -185,7 +185,7 @@ AGENT_TOOLS = [
     },
     {
         "name": "denoise_audio",
-        "description": "Remove background noise from clip audio using AI-based noise suppression (RNNoise). Processes one or all clips in the project timeline.",
+        "description": "Remove background noise from clip audio using DeepFilterNet AI noise suppression. Handles non-stationary noise (traffic, horns, crowds) while keeping speech natural. Processes one or all clips in the project timeline.",
         "parameters": {
             "type": "object",
             "properties": {

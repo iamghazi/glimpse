@@ -307,6 +307,13 @@ class AgentExecutor:
             })
 
         logger.info(f"Found {len(clips)} clips")
+
+        if not clips:
+            raise ValueError(
+                f"No clips found for query: '{query}'. "
+                "Try a broader search term or verify that videos have been indexed."
+            )
+
         return {
             "query": query,
             "num_results": len(clips),
@@ -351,6 +358,24 @@ class AgentExecutor:
 
         # Get chunk from vector DB
         chunks = self.vector_db.get_chunks_by_ids([chunk_id])
+
+        # Fallback: the planner may pass a video_id instead of a chunk_id.
+        # Try searching for the first chunk belonging to that video.
+        if not chunks:
+            from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+            scroll_result = self.vector_db.client.scroll(
+                collection_name=self.vector_db.collection_name,
+                scroll_filter=Filter(
+                    must=[FieldCondition(key="video_id", match=MatchValue(value=chunk_id))]
+                ),
+                limit=1,
+                with_payload=True,
+            )
+            if scroll_result and scroll_result[0]:
+                payload = scroll_result[0][0].payload
+                chunks = [payload]
+
         if not chunks:
             raise ValueError(f"Chunk not found: {chunk_id}")
 
@@ -578,16 +603,13 @@ class AgentExecutor:
         params: Dict[str, Any],
         project: Optional[Project]
     ) -> Dict[str, Any]:
-        """Remove background noise from clip audio using RNNoise"""
+        """Remove background noise from clip audio using DeepFilterNet"""
         import asyncio
+        import tempfile
         from pathlib import Path
 
         if not project:
             raise ValueError("No project created yet")
-
-        model_path = settings.DENOISE_MODEL_PATH.resolve()
-        if not model_path.exists():
-            raise ValueError(f"Denoise model not found at {model_path}")
 
         clip_index = params.get("clip_index")
 
@@ -601,6 +623,9 @@ class AgentExecutor:
         if not clips_to_process:
             return {"success": True, "processed": 0, "message": "No clips to denoise"}
 
+        # Lazy-load DeepFilterNet model (shim needed for torchaudio compat)
+        model, df_state = _load_deepfilter()
+
         processed = []
         for idx, clip in clips_to_process:
             input_path = clip.source_path
@@ -608,28 +633,56 @@ class AgentExecutor:
                 settings.EXPORTS_DIR / f"{project.id}-denoised-{idx}.mp4"
             )
 
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", input_path,
-                "-af", f"arnndn=m={model_path}",
-                "-c:v", "copy",
-                output_path,
-            ]
-
             logger.info(f"🔇 Denoising clip {idx}: {input_path}")
 
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            _, stderr = await proc.communicate()
+            with tempfile.TemporaryDirectory() as tmpdir:
+                tmp_wav_in = str(Path(tmpdir) / "audio_in.wav")
+                tmp_wav_out = str(Path(tmpdir) / "audio_out.wav")
 
-            if proc.returncode != 0:
-                error_msg = stderr.decode()[-500:]
-                raise ValueError(
-                    f"FFmpeg denoise failed for clip {idx}: {error_msg}"
+                # Step 1: Extract audio as 48 kHz mono WAV
+                extract_cmd = [
+                    "ffmpeg", "-y", "-i", input_path,
+                    "-vn", "-ar", "48000", "-ac", "1", "-f", "wav",
+                    tmp_wav_in,
+                ]
+                proc = await asyncio.create_subprocess_exec(
+                    *extract_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
+                _, stderr = await proc.communicate()
+                if proc.returncode != 0:
+                    raise ValueError(
+                        f"Audio extraction failed for clip {idx}: "
+                        f"{stderr.decode()[-500:]}"
+                    )
+
+                # Step 2: Run DeepFilterNet enhancement
+                await asyncio.to_thread(
+                    _enhance_audio, model, df_state, tmp_wav_in, tmp_wav_out
+                )
+
+                # Step 3: Mux cleaned audio back with original video
+                mux_cmd = [
+                    "ffmpeg", "-y",
+                    "-i", input_path,
+                    "-i", tmp_wav_out,
+                    "-c:v", "copy",
+                    "-map", "0:v:0",
+                    "-map", "1:a:0",
+                    output_path,
+                ]
+                proc = await asyncio.create_subprocess_exec(
+                    *mux_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                _, stderr = await proc.communicate()
+                if proc.returncode != 0:
+                    raise ValueError(
+                        f"Audio mux failed for clip {idx}: "
+                        f"{stderr.decode()[-500:]}"
+                    )
 
             clip.source_path = output_path
             processed.append(idx)
@@ -642,3 +695,74 @@ class AgentExecutor:
             "processed": len(processed),
             "clip_indices": processed,
         }
+
+
+# ---------------------------------------------------------------------------
+# DeepFilterNet helpers (module-level to allow lazy singleton loading)
+# ---------------------------------------------------------------------------
+_df_model = None
+_df_state = None
+
+
+def _load_deepfilter():
+    """Load DeepFilterNet model (singleton, first call downloads weights)."""
+    global _df_model, _df_state
+
+    if _df_model is not None:
+        return _df_model, _df_state
+
+    import sys
+    import types
+
+    # Shim: deepfilternet 0.5.x imports torchaudio.backend.common.AudioMetaData
+    # which was removed in torchaudio >= 2.2.  Create a lightweight stand-in.
+    if "torchaudio.backend" not in sys.modules:
+        from dataclasses import dataclass
+
+        @dataclass
+        class _AudioMetaData:
+            sample_rate: int = 0
+            num_frames: int = 0
+            num_channels: int = 0
+            bits_per_sample: int = 0
+            encoding: str = ""
+
+        backend = types.ModuleType("torchaudio.backend")
+        common = types.ModuleType("torchaudio.backend.common")
+        common.AudioMetaData = _AudioMetaData
+        backend.common = common
+        sys.modules["torchaudio.backend"] = backend
+        sys.modules["torchaudio.backend.common"] = common
+
+    from df.enhance import init_df
+
+    model, df_state, _ = init_df()
+    _df_model, _df_state = model, df_state
+    logger.info("🔇 DeepFilterNet model loaded")
+    return _df_model, _df_state
+
+
+def _enhance_audio(model, df_state, input_path: str, output_path: str):
+    """Run DeepFilterNet on a WAV file (blocking — call via asyncio.to_thread)."""
+    import wave
+    import numpy as np
+    import torch
+    from df import enhance
+
+    # Read WAV using stdlib (avoids torchaudio backend issues)
+    with wave.open(input_path, "rb") as wf:
+        sr = wf.getframerate()
+        frames = wf.readframes(wf.getnframes())
+        audio_np = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+
+    audio = torch.from_numpy(audio_np).unsqueeze(0)  # [1, samples]
+
+    enhanced = enhance(model, df_state, audio)
+
+    # Write WAV using stdlib
+    out_np = (enhanced.squeeze(0).numpy() * 32768.0).clip(-32768, 32767).astype(np.int16)
+    with wave.open(output_path, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)  # 16-bit
+        wf.setframerate(sr)
+        wf.writeframes(out_np.tobytes())

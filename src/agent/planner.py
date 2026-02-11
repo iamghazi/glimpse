@@ -54,12 +54,15 @@ Return a JSON object with this structure:
 ## Variable Substitution
 
 You can reference results from previous steps using this syntax:
-- {{search_clips.clips[0].video_id}} - First clip's video ID from search
+- {{search_clips.clips[0].chunk_id}} - First clip's chunk ID (use this for get_clip_info)
+- {{search_clips.clips[0].video_id}} - First clip's video ID
 - {{search_clips.clips[0].video_path}} - First clip's source file path
 - {{create_project.project_id}} - The created project ID
 
 The search_clips tool returns:
-- clips[N].video_id, clips[N].video_path, clips[N].start_time, clips[N].end_time, clips[N].duration
+- clips[N].chunk_id, clips[N].video_id, clips[N].video_path, clips[N].start_time, clips[N].end_time, clips[N].duration
+
+IMPORTANT: When calling get_clip_info, use clips[N].chunk_id (NOT video_id). chunk_id identifies a specific clip segment (e.g. "vid_123_0_30"), while video_id identifies the whole video.
 
 ## Example Plan
 
