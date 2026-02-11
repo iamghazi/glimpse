@@ -200,6 +200,39 @@ AGENT_TOOLS = [
             },
             "required": ["project_id"]
         }
+    },
+    {
+        "name": "remove_silent_parts",
+        "description": "Analyze clips and remove segments that are both silent and visually static (dead air). Keeps silent parts that have visual activity (e.g. demos without narration). Replaces original clip with multiple sub-clips that skip the dead segments.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project ID containing the clips to process"
+                },
+                "clip_index": {
+                    "type": "integer",
+                    "description": "Index of a specific clip to process (0-indexed). If omitted, all clips are processed."
+                },
+                "silence_threshold_db": {
+                    "type": "number",
+                    "description": "Audio level below which is considered silence (dB, default: -30)",
+                    "default": -30
+                },
+                "min_silence_duration": {
+                    "type": "number",
+                    "description": "Minimum silence length to consider for removal (seconds, default: 1.5)",
+                    "default": 1.5
+                },
+                "visual_activity_threshold": {
+                    "type": "number",
+                    "description": "Visual motion threshold (0-255 scale). Below this + silent = remove. Default: 5.0",
+                    "default": 5.0
+                }
+            },
+            "required": ["project_id"]
+        }
     }
 ]
 

@@ -268,6 +268,9 @@ class AgentExecutor:
         elif tool_name == "denoise_audio":
             return await self._denoise_audio(params, project)
 
+        elif tool_name == "remove_silent_parts":
+            return await self._remove_silent_parts(params, project)
+
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
 
@@ -288,10 +291,13 @@ class AgentExecutor:
         # Get video metadata to resolve actual file paths
         video_paths = await self._get_video_paths()
 
+        duration_cache: dict[str, float] = {}
         clips = []
         for r in results:
             # Resolve actual video path from metadata
             video_path = video_paths.get(r.video_id, f"data/videos/{r.video_id}.mp4")
+            if video_path not in duration_cache:
+                duration_cache[video_path] = await _get_video_duration(video_path)
 
             clips.append({
                 "chunk_id": r.chunk_id,
@@ -303,7 +309,8 @@ class AgentExecutor:
                 "visual_description": r.visual_description,
                 "audio_transcript": r.audio_transcript,
                 "score": r.score,
-                "video_path": video_path
+                "video_path": video_path,
+                "video_duration": duration_cache[video_path],
             })
 
         logger.info(f"Found {len(clips)} clips")
@@ -598,6 +605,111 @@ class AgentExecutor:
             logger.error(f"❌ Preview render failed: {result.get('error')}")
             raise ValueError(f"Render failed: {result.get('error')}")
 
+    async def _remove_silent_parts(
+        self,
+        params: Dict[str, Any],
+        project: Optional[Project]
+    ) -> Dict[str, Any]:
+        """Remove segments that are both audio-silent and visually static."""
+        import asyncio
+
+        if not project:
+            raise ValueError("No project created yet")
+
+        clip_index = params.get("clip_index")
+        silence_db = params.get("silence_threshold_db", -30)
+        min_silence = params.get("min_silence_duration", 1.5)
+        visual_threshold = params.get("visual_activity_threshold", 5.0)
+
+        if clip_index is not None:
+            if clip_index < 0 or clip_index >= len(project.clips):
+                raise ValueError(f"Invalid clip index: {clip_index}")
+            indices = [clip_index]
+        else:
+            indices = list(range(len(project.clips)))
+
+        total_removed = 0.0
+        clips_modified = 0
+
+        # Process in reverse order so insertions don't shift earlier indices
+        for idx in sorted(indices, reverse=True):
+            clip = project.clips[idx]
+            logger.info(
+                f"🔇 Analyzing clip {idx} for silence: "
+                f"{clip.cut_from:.1f}s-{clip.cut_to:.1f}s"
+            )
+
+            # 1. Detect silent segments
+            silent_ranges = await _detect_silence(
+                clip.source_path, clip.cut_from, clip.cut_to,
+                silence_db, min_silence,
+            )
+
+            if not silent_ranges:
+                logger.info(f"  No silence detected in clip {idx}, skipping")
+                continue
+
+            # 2. Check visual activity in each silent segment
+            remove_ranges = []
+            for seg_start, seg_end in silent_ranges:
+                activity = await asyncio.to_thread(
+                    _measure_visual_activity,
+                    clip.source_path, seg_start, seg_end,
+                )
+                logger.info(
+                    f"  Silence {seg_start:.1f}-{seg_end:.1f}s "
+                    f"visual_activity={activity:.2f}"
+                )
+                if activity < visual_threshold:
+                    remove_ranges.append((seg_start, seg_end))
+
+            if not remove_ranges:
+                logger.info(f"  All silent parts have visual activity, keeping clip {idx} intact")
+                continue
+
+            # 3. Compute keep ranges
+            keep_ranges = _compute_keep_ranges(
+                clip.cut_from, clip.cut_to, remove_ranges,
+            )
+
+            removed_dur = sum(e - s for s, e in remove_ranges)
+            total_removed += removed_dur
+            clips_modified += 1
+
+            # 4. Replace original clip with sub-clips
+            original_clip = project.clips.pop(idx)
+
+            for j, (keep_start, keep_end) in enumerate(keep_ranges):
+                sub_clip = TimelineClip(
+                    video_id=original_clip.video_id,
+                    source_path=original_clip.source_path,
+                    cut_from=keep_start,
+                    cut_to=keep_end,
+                    order=0,  # will be re-indexed below
+                    transition=original_clip.transition if j == 0 else "dummy",
+                    transition_duration=original_clip.transition_duration if j == 0 else 0.0,
+                )
+                project.clips.insert(idx + j, sub_clip)
+
+            logger.info(
+                f"  Clip {idx} -> {len(keep_ranges)} sub-clips, "
+                f"removed {removed_dur:.1f}s of dead air"
+            )
+
+        # Re-index all clip orders
+        for i, c in enumerate(project.clips):
+            c.order = i
+
+        state_manager.save_project(project)
+
+        return {
+            "success": True,
+            "clips_modified": clips_modified,
+            "total_removed_seconds": round(total_removed, 2),
+            "total_clips": project.clip_count,
+            "total_duration": round(project.total_duration, 2),
+        }
+
     async def _denoise_audio(
         self,
         params: Dict[str, Any],
@@ -634,6 +746,13 @@ class AgentExecutor:
             )
 
             logger.info(f"🔇 Denoising clip {idx}: {input_path}")
+
+            if input_path == output_path:
+                logger.info(
+                    f"⚠️  Clip {idx} already denoised (input == output). Skipping."
+                )
+                processed.append(idx)
+                continue
 
             with tempfile.TemporaryDirectory() as tmpdir:
                 tmp_wav_in = str(Path(tmpdir) / "audio_in.wav")
@@ -766,3 +885,174 @@ def _enhance_audio(model, df_state, input_path: str, output_path: str):
         wf.setsampwidth(2)  # 16-bit
         wf.setframerate(sr)
         wf.writeframes(out_np.tobytes())
+
+
+async def _get_video_duration(video_path: str) -> float:
+    """Get video duration using ffprobe (seconds)."""
+    import asyncio
+    import json
+
+    cmd = [
+        "ffprobe",
+        "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "json",
+        video_path,
+    ]
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        logger.warning(f"Failed to get duration for {video_path}: {stderr.decode()[-200:]}")
+        return 0.0
+
+    try:
+        data = json.loads(stdout.decode())
+        return float(data["format"]["duration"])
+    except (KeyError, ValueError, json.JSONDecodeError) as e:
+        logger.warning(f"Failed to parse duration for {video_path}: {e}")
+        return 0.0
+
+
+# ---------------------------------------------------------------------------
+# Silence removal helpers
+# ---------------------------------------------------------------------------
+
+async def _detect_silence(
+    video_path: str,
+    start_time: float,
+    end_time: float,
+    threshold_db: float,
+    min_duration: float,
+) -> list[tuple[float, float]]:
+    """Detect silent audio segments using FFmpeg silencedetect.
+
+    Returns list of (start, end) tuples in source-video coordinates.
+    """
+    import asyncio
+    import re
+
+    duration = end_time - start_time
+    cmd = [
+        "ffmpeg",
+        "-ss", str(start_time),
+        "-i", video_path,
+        "-t", str(duration),
+        "-af", f"silencedetect=noise={threshold_db}dB:d={min_duration}",
+        "-f", "null", "-",
+    ]
+
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr_bytes = await proc.communicate()
+    stderr = stderr_bytes.decode(errors="replace")
+
+    # Parse silence_start / silence_end pairs from stderr
+    starts = [float(m) for m in re.findall(r"silence_start:\s*([\d.]+)", stderr)]
+    ends = [float(m) for m in re.findall(r"silence_end:\s*([\d.]+)", stderr)]
+
+    ranges: list[tuple[float, float]] = []
+    for i, s in enumerate(starts):
+        # Convert relative timestamps back to source-video coordinates
+        abs_start = s + start_time
+        abs_end = (ends[i] + start_time) if i < len(ends) else end_time
+        # Clamp to clip boundaries
+        abs_start = max(abs_start, start_time)
+        abs_end = min(abs_end, end_time)
+        if abs_end > abs_start:
+            ranges.append((abs_start, abs_end))
+
+    return ranges
+
+
+def _measure_visual_activity(
+    video_path: str,
+    start_time: float,
+    end_time: float,
+    sample_fps: float = 2.0,
+) -> float:
+    """Measure visual activity via frame differencing (blocking).
+
+    Returns mean pixel difference (0 = static, 5+ = significant motion).
+    """
+    import cv2
+    import numpy as np
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        logger.warning(f"Cannot open video: {video_path}")
+        return 0.0
+
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    start_frame = int(start_time * fps)
+    end_frame = int(end_time * fps)
+    step = max(1, int(fps / sample_fps))
+
+    cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+
+    prev_gray = None
+    diffs: list[float] = []
+
+    frame_idx = start_frame
+    while frame_idx < end_frame:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        if (frame_idx - start_frame) % step == 0:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.resize(gray, (160, 90))
+
+            if prev_gray is not None:
+                diff = cv2.absdiff(prev_gray, gray)
+                diffs.append(float(np.mean(diff)))
+
+            prev_gray = gray
+
+        frame_idx += 1
+
+    cap.release()
+    return float(np.mean(diffs)) if diffs else 0.0
+
+
+def _compute_keep_ranges(
+    clip_start: float,
+    clip_end: float,
+    remove_ranges: list[tuple[float, float]],
+    min_keep_duration: float = 0.5,
+) -> list[tuple[float, float]]:
+    """Invert removal ranges into keep ranges, filtering short segments.
+
+    Pure function — sorts and merges overlapping removal ranges, then
+    returns gap segments >= min_keep_duration.
+    """
+    if not remove_ranges:
+        return [(clip_start, clip_end)]
+
+    # Sort and merge overlapping removal ranges
+    sorted_ranges = sorted(remove_ranges)
+    merged: list[tuple[float, float]] = [sorted_ranges[0]]
+    for s, e in sorted_ranges[1:]:
+        if s <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], e))
+        else:
+            merged.append((s, e))
+
+    # Compute gaps (keep segments)
+    keeps: list[tuple[float, float]] = []
+    cursor = clip_start
+    for rm_start, rm_end in merged:
+        if rm_start > cursor:
+            keeps.append((cursor, rm_start))
+        cursor = max(cursor, rm_end)
+    if cursor < clip_end:
+        keeps.append((cursor, clip_end))
+
+    # Filter out segments shorter than min_keep_duration
+    return [(s, e) for s, e in keeps if (e - s) >= min_keep_duration]

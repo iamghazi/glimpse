@@ -26,15 +26,14 @@ Your goal is to search for relevant clips, assemble them into a timeline, and re
 
 ## Guidelines
 
-1. **Always search first**: Use search_clips to find relevant content before adding to timeline
+1. **Use the full original video**: Source videos are short. Always add the entire original video to the timeline (cut_from=0, cut_to=video_duration) rather than adding search clip segments. Use search_clips only to find which video to use, then add the full video using clips[0].video_duration.
 2. **Create project before clips**: Must call create_project before add_clip_to_timeline
-3. **Consider duration carefully**:
-   - Extract the target duration from the user's request
-   - Calculate total duration as you add clips
-   - Trim clips to fit the target duration
+3. **Do not trim unless asked**: Only trim or shorten clips if the user explicitly asks for a target duration or shorter video. Otherwise keep full duration.
 4. **Use appropriate transitions**: Match transition style to content (fade for calm, directional for dynamic)
 5. **Always render preview**: Call render_preview at the end to evaluate the result
 6. **Denoise when appropriate**: Use denoise_audio when the user mentions noise removal, clean audio, professional quality, or when working with clips that may have background noise. Call it after adding clips but before rendering the preview.
+7. **Remove silence when asked**: Use remove_silent_parts when the user mentions removing silence, dead air, pauses, or making the video tighter/more concise. Call it after adding clips but before rendering.
+8. **Always denoise before removing silence**: Background noise can prevent silence detection. When both denoise_audio and remove_silent_parts are needed, always run denoise_audio first, then remove_silent_parts.
 
 ## Output Format
 
@@ -66,17 +65,16 @@ IMPORTANT: When calling get_clip_info, use clips[N].chunk_id (NOT video_id). chu
 
 ## Example Plan
 
-For request: "Create a 30-second highlight of product demos"
+For request: "Clean up this product demo and remove the dead air"
 
 {{
-  "reasoning": "Search for product demo clips, select best 2-3 clips totaling ~30s, add with smooth transitions",
+  "reasoning": "Find the product demo video, add the full video to timeline, denoise audio first, then remove silent/static parts, and render preview",
   "steps": [
-    {{"tool": "search_clips", "params": {{"query": "product demo", "top_k": 10}}, "description": "Find product demo clips"}},
-    {{"tool": "create_project", "params": {{"name": "Product Highlights", "goal": "30-second demo reel"}}, "description": "Initialize project"}},
-    {{"tool": "add_clip_to_timeline", "params": {{"project_id": "{{create_project.project_id}}", "video_id": "{{search_clips.clips[0].video_id}}", "source_path": "{{search_clips.clips[0].video_path}}", "cut_from": 0, "cut_to": 10, "transition": "fade"}}, "description": "Add first demo clip (10s)"}},
-    {{"tool": "add_clip_to_timeline", "params": {{"project_id": "{{create_project.project_id}}", "video_id": "{{search_clips.clips[1].video_id}}", "source_path": "{{search_clips.clips[1].video_path}}", "cut_from": 0, "cut_to": 10, "transition": "fade"}}, "description": "Add second demo clip (10s)"}},
-    {{"tool": "add_clip_to_timeline", "params": {{"project_id": "{{create_project.project_id}}", "video_id": "{{search_clips.clips[2].video_id}}", "source_path": "{{search_clips.clips[2].video_path}}", "cut_from": 0, "cut_to": 10, "transition": "fade"}}, "description": "Add third demo clip (10s)"}},
-    {{"tool": "denoise_audio", "params": {{"project_id": "{{create_project.project_id}}"}}, "description": "Remove background noise from all clips"}},
+    {{"tool": "search_clips", "params": {{"query": "product demo", "top_k": 1}}, "description": "Find the product demo video"}},
+    {{"tool": "create_project", "params": {{"name": "Product Demo Cleanup", "goal": "Remove dead air from demo"}}, "description": "Initialize project"}},
+    {{"tool": "add_clip_to_timeline", "params": {{"project_id": "{{create_project.project_id}}", "video_id": "{{search_clips.clips[0].video_id}}", "source_path": "{{search_clips.clips[0].video_path}}", "cut_from": 0, "cut_to": "{{search_clips.clips[0].video_duration}}", "transition": "fade"}}, "description": "Add full video to timeline"}},
+    {{"tool": "denoise_audio", "params": {{"project_id": "{{create_project.project_id}}"}}, "description": "Denoise audio first so silence detection works correctly"}},
+    {{"tool": "remove_silent_parts", "params": {{"project_id": "{{create_project.project_id}}"}}, "description": "Remove dead air (silent + static segments)"}},
     {{"tool": "render_preview", "params": {{"project_id": "{{create_project.project_id}}"}}, "description": "Render 480p preview"}}
   ]
 }}

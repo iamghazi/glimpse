@@ -23,7 +23,7 @@ class AgentEvaluator:
         """
         self.duration_tolerance = duration_tolerance
 
-    def extract_duration_target(self, user_request: str) -> float:
+    def extract_duration_target(self, user_request: str) -> tuple[float, bool]:
         """
         Extract target duration from user request
 
@@ -32,7 +32,7 @@ class AgentEvaluator:
         - "1 minute", "1 min", "1m"
         - "1:30" (minute:second format)
 
-        Returns default of 60 seconds if no duration found
+        Returns (target_seconds, has_target). If no duration found, target is 0.
         """
         request_lower = user_request.lower()
 
@@ -41,7 +41,7 @@ class AgentEvaluator:
         if mm_ss_match:
             minutes = int(mm_ss_match.group(1))
             seconds = int(mm_ss_match.group(2))
-            return minutes * 60 + seconds
+            return minutes * 60 + seconds, True
 
         # Pattern: X minutes (and Y seconds)
         # Also handles hyphenated forms like "30-second", "2-minute"
@@ -55,11 +55,11 @@ class AgentEvaluator:
             total += float(sec_match.group(1))
 
         if total > 0:
-            return total
+            return total, True
 
-        # Default target duration
-        logger.warning("No duration target found in request, defaulting to 60s")
-        return 60.0
+        # No explicit duration target
+        logger.info("No explicit duration target found in request")
+        return 0.0, False
 
     async def evaluate(
         self,
@@ -81,15 +81,18 @@ class AgentEvaluator:
         logger.info("📊 Evaluating execution result")
 
         # Extract target duration
-        target_duration = self.extract_duration_target(user_request)
+        target_duration, has_target = self.extract_duration_target(user_request)
         actual_duration = execution_result.duration or 0
         clip_count = execution_result.clip_count
         render_success = execution_result.success and execution_result.preview_path is not None
 
         # Calculate duration tolerance
-        tolerance = target_duration * self.duration_tolerance
-        duration_diff = abs(actual_duration - target_duration)
-        duration_ok = duration_diff <= tolerance
+        if has_target:
+            tolerance = target_duration * self.duration_tolerance
+            duration_diff = abs(actual_duration - target_duration)
+            duration_ok = duration_diff <= tolerance
+        else:
+            duration_ok = True
 
         # Determine if satisfied
         satisfied = render_success and duration_ok and clip_count > 0
@@ -106,21 +109,26 @@ class AgentEvaluator:
         if clip_count == 0:
             refinements.append("No clips added - search for and add relevant clips")
 
-        if actual_duration > target_duration + tolerance:
-            excess = actual_duration - target_duration
-            refinements.append(
-                f"Video too long by {excess:.1f}s - trim clips or remove content"
-            )
+        if has_target:
+            tolerance = target_duration * self.duration_tolerance
+            if actual_duration > target_duration + tolerance:
+                excess = actual_duration - target_duration
+                refinements.append(
+                    f"Video too long by {excess:.1f}s - trim clips or remove content"
+                )
 
-        if actual_duration < target_duration - tolerance:
-            deficit = target_duration - actual_duration
-            refinements.append(
-                f"Video too short by {deficit:.1f}s - add more clips"
-            )
+            if actual_duration < target_duration - tolerance:
+                deficit = target_duration - actual_duration
+                refinements.append(
+                    f"Video too short by {deficit:.1f}s - add more clips"
+                )
 
         # Log evaluation summary
         logger.info(f"📊 Evaluation Results:")
-        logger.info(f"   Target duration: {target_duration:.1f}s")
+        if has_target:
+            logger.info(f"   Target duration: {target_duration:.1f}s")
+        else:
+            logger.info("   Target duration: (none specified)")
         logger.info(f"   Actual duration: {actual_duration:.1f}s")
         logger.info(f"   Duration OK: {'✅' if duration_ok else '❌'}")
         logger.info(f"   Render success: {'✅' if render_success else '❌'}")

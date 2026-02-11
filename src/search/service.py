@@ -116,6 +116,20 @@ def search_videos(
     # Sort by score (descending) - should already be sorted, but ensure it
     final_results.sort(key=lambda x: x.score, reverse=True)
 
+    # Detect whether reranking actually updated scores.
+    # RRF fusion scores are always < 0.1; LLM confidence scores are 0.0-1.0.
+    # If the best score is still in the RRF range, both rerankers fell back
+    # and applying a confidence threshold would incorrectly discard everything.
+    best_score = final_results[0].score if final_results else 0.0
+    reranking_applied = best_score >= 0.1
+
+    if not reranking_applied and final_results:
+        logger.warning(
+            "Reranking tiers fell back — returning top Tier 1 results "
+            "without confidence filtering"
+        )
+        return final_results[:top_k]
+
     # Filter to only high-confidence results (>= threshold)
     high_confidence_results = [
         r for r in final_results if r.score >= confidence_threshold
